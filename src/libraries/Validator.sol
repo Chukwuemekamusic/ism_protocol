@@ -22,6 +22,12 @@ library Validator {
         }
     }
 
+    function ensureTokenIsNotZeroAddress(address token) internal pure {
+        if (token == address(0)) {
+            revert Errors.InvalidToken();
+        }
+    }
+
     function ensureValueIsNotZero(uint256 _value) internal pure {
         if (_value == 0) {
             revert Errors.ZeroAmount();

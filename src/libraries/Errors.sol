@@ -8,6 +8,7 @@ library Errors {
     error EmptyString();
 
     error SameToken();
+    error InvalidToken();
 
     // LendingPool
     error InvalidCollateralToken();
@@ -16,4 +17,12 @@ library Errors {
     error InsufficientLiquidity();
     error WouldBeUndercollateralized();
     error NoDebt();
+
+    // Oracle Router
+    error OracleNotConfigured(address token);
+    error StalePrice(address token, uint256 updatedAt, uint256 maxStaleness);
+    error InvalidPrice(address token, int256 price);
+    error SequencerDown();
+    error PriceDeviationTooHigh(address token, uint256 chainlinkPrice, uint256 twapPrice);
+    error BothOraclesFailed(address token);
 }
