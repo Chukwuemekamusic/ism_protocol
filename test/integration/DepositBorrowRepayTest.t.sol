@@ -214,10 +214,10 @@ contract DepositBorrowRepayTest is Test {
         pool.depositCollateral(10e18); // $20,000 collateral
 
         // Max borrow at 75% LTV = $15,000
-        uint256 alice_maxborrow = pool.getMaxBorrow(alice);
+        uint256 aliceMaxBorrow = pool.getMaxBorrow(alice);
         vm.prank(alice);
-        pool.borrow(alice_maxborrow); // Borrow $15,000 USDC
-        console.log("Max borrow:", alice_maxborrow);
+        pool.borrow(aliceMaxBorrow); // Borrow $15,000 USDC
+        console.log("Max borrow:", aliceMaxBorrow);
 
         // Health factor should be exactly at threshold
         // HF = ($20,000 * 0.80) / $15,000 = 1.0667
@@ -233,10 +233,10 @@ contract DepositBorrowRepayTest is Test {
         pool.depositCollateral(10e18);
 
         // Try to borrow more than 75% LTV
-        uint256 alice_maxborrow = pool.getMaxBorrow(alice);
+        uint256 aliceMaxBorrow = pool.getMaxBorrow(alice);
         vm.prank(alice);
         vm.expectRevert(LendingPool.WouldBeUndercollateralized.selector);
-        pool.borrow(alice_maxborrow + 1); // > $15,000 max
+        pool.borrow(aliceMaxBorrow + 1); // > $15,000 max
     }
 
     /*//////////////////////////////////////////////////////////////

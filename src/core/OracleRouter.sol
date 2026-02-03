@@ -8,12 +8,21 @@ import {IUniswapV3Pool} from "src/interfaces/external/IUniswapV3Pool.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Validator} from "src/libraries/Validator.sol";
 import {TickMath} from "src/libraries/TickMath.sol";
+import {FixedPoint128} from "@uniswap/v3-core/libraries/FixedPoint128.sol";
 
-// import {FullMath} from "@uniswap/v3-core/libraries/FullMath.sol";
+import {FullMath} from "src/libraries/FullMath.sol";
 
 /// @title OracleRouter
 /// @notice Router for fetching prices from Chainlink and Uniswap V3
 contract OracleRouter is IOracleRouter, Ownable {
+    // struct OracleConfig {
+    //     address chainlinkFeed; // Primary: Chainlink aggregator
+    //     address uniswapPool; // Fallback: Uniswap V3 pool for TWAP
+    //     uint32 twapWindow; // TWAP observation window in seconds
+    //     uint96 maxStaleness; // Max age for Chainlink data (seconds)
+    //     bool isToken0; // Is this token token0 in the Uniswap pool?
+    // }
+
     /*//////////////////////////////////////////////////////////////
                                 CONSTANT
     //////////////////////////////////////////////////////////////*/
@@ -51,7 +60,6 @@ contract OracleRouter is IOracleRouter, Ownable {
     function setOracleConfig(address token, OracleConfig calldata config) external override onlyOwner {
         Validator.ensureTokenIsNotZeroAddress(token);
         Validator.ensureAddressIsNotZeroAddress(config.chainlinkFeed);
-        Validator.ensureAddressIsNotZeroAddress(config.uniswapPool);
 
         oracleConfigs[token] = config;
 
@@ -86,6 +94,12 @@ contract OracleRouter is IOracleRouter, Ownable {
         return _getPriceData(token);
     }
 
+    function getTwapPrice(address token) external view returns (uint256) {
+        OracleConfig memory config = oracleConfigs[token];
+        (uint256 price,) = _getTwapPrice(config);
+        return price;
+    }
+
     /// @notice Internal function to get price with full data
     function _getPriceData(address token) internal view returns (PriceData memory data) {
         OracleConfig memory config = oracleConfigs[token];
@@ -98,7 +112,7 @@ contract OracleRouter is IOracleRouter, Ownable {
         _checkSequencerStatus();
 
         // Try Chainlink first
-        (uint256 chainlinkPrice, bool chainlinkValid, string memory chainlinkReason) = _getChainlinkPrice(config);
+        (uint256 chainlinkPrice, bool chainlinkValid,) = _getChainlinkPrice(config);
 
         // Try TWAP if configured
         (uint256 twapPrice, bool twapValid) = config.uniswapPool != address(0) ? _getTwapPrice(config) : (0, false);
@@ -166,31 +180,25 @@ contract OracleRouter is IOracleRouter, Ownable {
         secondsAgos[0] = config.twapWindow;
         secondsAgos[1] = 0;
 
-        try pool.observe(secondsAgos) returns (
-            int56[] memory tickCumulatives,
-            uint160[] memory /* secondsPerLiquidityCumulativeX128s */
-        ) {
-            // Calculate average tick
+        try pool.observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
             int56 tickDelta = tickCumulatives[1] - tickCumulatives[0];
             int24 avgTick = int24(tickDelta / int56(uint56(config.twapWindow)));
 
-            // Convert tick to sqrt price
+            // Get sqrtPriceX96 from TickMath
             uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(avgTick);
 
-            // Convert to price (token1/token0)
-            // sqrtPriceX96 = sqrt(price) * 2^96
-            // price = (sqrtPriceX96 / 2^96)^2 = sqrtPriceX96^2 / 2^192
-            uint256 priceX192 = uint256(sqrtPriceX96) * uint256(sqrtPriceX96);
+            // We need (sqrtPriceX96^2 / 2^192) * 1e18
+            // To avoid 256-bit overflow, we calculate ratio = (sqrtP^2 / 2^64)
+            uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
 
-            // If our token is token0, we need price of token0 in terms of token1
-            // If our token is token1, we need the inverse
             if (config.isToken0) {
-                // Price is already token1/token0, need token0 price
-                // Assuming token1 is a stablecoin (USDC), this gives us USD price
-                price = (priceX192 * PRICE_PRECISION) >> 192;
+                // Price of token0 in terms of token1
+                // (ratioX128 * 1e18) / 2^128
+                price = FullMath.mulDiv(ratioX128, PRICE_PRECISION, 1 << 128);
             } else {
-                // Need inverse: token0/token1
-                price = (1 << 192) * PRICE_PRECISION / priceX192;
+                // Price of token1 in terms of token0 (Inverse)
+                // (2^128 * 1e18) / ratioX128
+                price = FullMath.mulDiv(1 << 128, PRICE_PRECISION, ratioX128);
             }
 
             isValid = price > 0;
@@ -209,9 +217,7 @@ contract OracleRouter is IOracleRouter, Ownable {
             return; // Not on L2 or not configured
         }
 
-        try sequencerUptimeFeed.latestRoundData() returns (
-            uint80, int256 answer, uint256 startedAt, uint256 updatedAt, uint80
-        ) {
+        try sequencerUptimeFeed.latestRoundData() returns (uint80, int256 answer, uint256 startedAt, uint256, uint80) {
             // Check if sequencer is up and grace period has passed
             // answer == 0: Sequencer is up
             // answer == 1: Sequencer is down

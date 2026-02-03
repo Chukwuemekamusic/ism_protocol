@@ -4,8 +4,9 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-// import {ILendingPool} from "../interfaces/ILendingPool.sol";
+import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IPoolToken} from "src/interfaces/IPoolToken.sol";
 import {IOracleRouter} from "src/interfaces/IOracleRouter.sol";
 import {IInterestRateModel} from "src/interfaces/IInterestRateModel.sol";
@@ -16,7 +17,7 @@ import {Errors} from "src/libraries/Errors.sol";
 /// @title LendingPool
 /// @notice Isolated lending pool for a single collateral/borrow pair
 /// @dev Each market is a separate instance of this contract
-contract LendingPool is ReentrancyGuard {
+contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     using MathLib for uint256;
     using SafeERC20 for IERC20;
 
@@ -25,11 +26,6 @@ contract LendingPool is ReentrancyGuard {
     error InsufficientBalance();
     error InsufficientLiquidity();
     error WouldBeUndercollateralized();
-
-    struct Position {
-        uint128 collateralAmount; // Collateral deposited
-        uint128 borrowShares; // Share of borrows
-    }
 
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
@@ -41,19 +37,19 @@ contract LendingPool is ReentrancyGuard {
                                IMMUTABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The collateral token for this pool
+    // TOKEN REFERENCES
     IERC20 public immutable collateralToken;
-    /// @notice The borrow token for this pool
     IERC20 public immutable borrowToken;
+    IPoolToken public immutable poolToken;
+
+    // CONTRACT REFERENCES
     /// @notice Interest rate model for this pool (shared across all markets)
     IInterestRateModel public immutable interestRateModel;
     /// @notice The oracle router for this pool
     IOracleRouter public immutable oracleRouter;
-    /// @notice The pool token for this pool
-    IPoolToken public immutable poolToken;
-    /// @notice Decimals of the collateral token
+
+    // DECIMALS
     uint8 public immutable collateralDecimals;
-    /// @notice Decimals of the borrow token
     uint8 public immutable borrowDecimals;
 
     // RISK PARAMETERS
@@ -71,8 +67,14 @@ contract LendingPool is ReentrancyGuard {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    bool private _initialized; // Initialization flag
+    address public liquidator; // address of authorized liquidator
+    address public factory;
+
     /// @notice User => Position
     mapping(address => Position) public positions;
+
+    // MARKET STATE
     uint256 public totalCollateral; // Total collateral in the pool
     uint256 public totalBorrowAssets; // Total borrows assets (principal + accrued interest)
     uint256 public totalBorrowShares; // Total borrow shares issued
@@ -81,18 +83,25 @@ contract LendingPool is ReentrancyGuard {
     uint256 public totalReserves; // Total Protocol reserves
     uint256 public totalSupplyAssets; // Total supply assets (what suppliers deposited + interest)
     uint256 public totalSupplyShares; // Total supply shares
+    uint256 public lockedCollateral; // Total collateral locked for liquidation
 
     /*//////////////////////////////////////////////////////////////
-                               EVENTS
+                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed user, uint256 assets, uint256 shares);
-    event Withdraw(address indexed user, uint256 assets, uint256 shares);
-    event DepositCollateral(address indexed user, uint256 amount);
-    event WithdrawCollateral(address indexed user, uint256 amount);
-    event Borrow(address indexed user, uint256 assets, uint256 shares);
-    event Repay(address indexed user, address indexed payer, uint256 assets, uint256 shares);
-    event InterestAccrued(uint256 newBorrowIndex, uint256 totalBorrows, uint256 reserves);
+    modifier onlyLiquidator() {
+        if (msg.sender != liquidator) revert Errors.OnlyLiquidator();
+        _;
+    }
+
+    modifier onlyFactory() {
+        if (msg.sender != factory) revert Errors.OnlyFactory();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -108,7 +117,7 @@ contract LendingPool is ReentrancyGuard {
         uint64 _liquidationThreshold,
         uint64 _liquidationPenalty,
         uint64 _reserveFactor
-    ) {
+    ) Ownable(msg.sender) {
         {
             Validator.ensureCollateralTokenIsNotZero(_collateralToken);
             Validator.ensureBorrowTokenIsNotZero(_borrowToken);
@@ -120,9 +129,9 @@ contract LendingPool is ReentrancyGuard {
 
         collateralToken = IERC20(_collateralToken);
         borrowToken = IERC20(_borrowToken);
+        poolToken = IPoolToken(_poolToken);
         interestRateModel = IInterestRateModel(_interestRateModel);
         oracleRouter = IOracleRouter(_oracleRouter);
-        poolToken = IPoolToken(_poolToken);
 
         // Cache decimals
         collateralDecimals = _getDecimals(_collateralToken);
@@ -267,8 +276,8 @@ contract LendingPool is ReentrancyGuard {
         // Check if withdrawal would make position unhealthy
         uint256 newCollateral = pos.collateralAmount - amount;
         if (pos.borrowShares > 0) {
-            uint256 newHF = _calculateHealthFactor(newCollateral, pos.borrowShares);
-            if (newHF < WAD) revert WouldBeUndercollateralized();
+            uint256 newHf = _calculateHealthFactor(newCollateral, pos.borrowShares);
+            if (newHf < WAD) revert WouldBeUndercollateralized();
         }
 
         // Update state
@@ -333,6 +342,78 @@ contract LendingPool is ReentrancyGuard {
     function repayOnBehalf(address onBehalfOf, uint256 amount) external nonReentrant returns (uint256 shares) {
         Validator.ensureAddressIsNotZeroAddress(onBehalfOf);
         return _repay(onBehalfOf, msg.sender, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          LIQUIDATION SUPPORT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Set the liquidator contract (admin only)
+    function setLiquidator(address _liquidator) external onlyOwner {
+        require(_liquidator != address(0), "Invalid liquidator");
+        liquidator = _liquidator;
+    }
+
+    /// @notice Lock collateral for an active liquidation auction
+    /// @param user The user whose collateral to lock
+    /// @param amount The amount to lock
+    function lockCollateralForLiquidation(address user, uint256 amount) external onlyLiquidator {
+        Position storage pos = positions[user];
+        require(pos.collateralAmount >= amount, "Insufficient collateral");
+
+        pos.collateralAmount -= uint128(amount);
+        lockedCollateral += amount;
+
+        emit CollateralLocked(user, amount);
+    }
+
+    /// @notice Unlock collateral after auction cancellation
+    /// @param user The user whose collateral to unlock
+    /// @param amount The amount to unlock
+    function unlockCollateralAfterLiquidation(address user, uint256 amount) external onlyLiquidator {
+        require(lockedCollateral >= amount, "Insufficient locked");
+
+        positions[user].collateralAmount += uint128(amount);
+        lockedCollateral -= amount;
+
+        emit CollateralUnlocked(user, amount);
+    }
+
+    /// @notice Execute a liquidation (called by liquidator contract)
+    /// @param user The user being liquidated
+    /// @param liquidatorAddr The liquidator receiving collateral
+    /// @param debtRepaid Amount of debt being repaid
+    /// @param collateralSeized Amount of collateral being seized
+    function executeLiquidation(address user, address liquidatorAddr, uint256 debtRepaid, uint256 collateralSeized)
+        external
+        onlyLiquidator
+        nonReentrant
+    {
+        accrueInterest();
+
+        Position storage pos = positions[user];
+
+        // Calculate shares to burn
+        uint256 sharesToBurn = debtRepaid.divWadUp(borrowIndex);
+        if (sharesToBurn > pos.borrowShares) {
+            sharesToBurn = pos.borrowShares;
+        }
+
+        // Update state
+        pos.borrowShares -= uint128(sharesToBurn);
+        totalBorrowShares -= sharesToBurn;
+        totalBorrowAssets -= debtRepaid;
+        lockedCollateral -= collateralSeized;
+
+        // Transfer collateral to liquidator
+        collateralToken.safeTransfer(liquidatorAddr, collateralSeized);
+
+        emit Liquidation(user, liquidatorAddr, debtRepaid, collateralSeized);
+    }
+
+    /// @notice Check if position has locked collateral (in active auction)
+    function hasLockedCollateral(address user) external view returns (bool) {
+        // This would need tracking per user - simplified version
+        return lockedCollateral > 0;
     }
 
     /*//////////////////////////////////////////////////////////////

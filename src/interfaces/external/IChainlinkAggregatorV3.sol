@@ -21,11 +21,11 @@ interface IChainlinkAggregatorV3 {
     /// @notice Get the description of the feed
     function description() external view returns (string memory);
 
-    /// @notice Get the version of the feed
-    function version() external view returns (uint256);
+    // /// @notice Get the version of the feed
+    // function version() external view returns (uint256);
 
-    function getRoundData(uint80 _roundId)
-        external
-        view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+    // function getRoundData(uint80 _roundId)
+    //     external
+    //     view
+    //     returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
 }

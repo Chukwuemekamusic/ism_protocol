@@ -11,11 +11,14 @@ library Errors {
     error InvalidToken();
 
     // LendingPool
+    error AlreadyInitialized();
     error InvalidCollateralToken();
     error InvalidBorrowToken();
     error InsufficientBalance();
     error InsufficientLiquidity();
     error WouldBeUndercollateralized();
+    error OnlyLiquidator();
+    error OnlyFactory();
     error NoDebt();
 
     // Oracle Router
@@ -25,4 +28,18 @@ library Errors {
     error SequencerDown();
     error PriceDeviationTooHigh(address token, uint256 chainlinkPrice, uint256 twapPrice);
     error BothOraclesFailed(address token);
+
+    // DutchAuctionLiquidator
+    error PositionNotLiquidatable(address user, uint256 healthFactor);
+    error AuctionNotActive(uint256 auctionId);
+    error AuctionAlreadyExists(address user, address pool);
+    error AuctionExpired(uint256 auctionId);
+    error AuctionNotExpired(uint256 auctionId);
+    error InsufficientRepayment(uint256 provided, uint256 required);
+    error InvalidAuctionConfig();
+    error PoolNotAuthorized(address pool);
+    error InvalidAuctionConfigDuration();
+    error InvalidAuctionConfigStartPremium();
+    error InvalidAuctionConfigEndDiscount();
+    error InvalidAuctionConfigCloseFactor();
 }
