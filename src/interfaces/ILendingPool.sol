@@ -13,6 +13,15 @@ interface ILendingPool {
         uint128 borrowShares; // Share of borrows
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+    // error ZeroAmount();
+    // error ZeroAddress();
+    // error InsufficientBalance();
+    // error InsufficientLiquidity();
+    // error WouldBeUndercollateralized();
+
     struct MarketConfig {
         address collateralToken;
         address borrowToken;

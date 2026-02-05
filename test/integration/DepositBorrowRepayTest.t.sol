@@ -2,13 +2,14 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
-import {LendingPool} from "../../src/core/LendingPool.sol";
-import {InterestRateModel} from "../../src/core/InterestRateModel.sol";
-import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
-import {PoolToken} from "../../src/core/PoolToken.sol";
-import {MockOracle} from "../../src/mocks/MockOracle.sol";
-import {MockERC20} from "../../src/mocks/MockERC20.sol";
-import {MathLib} from "../../src/libraries/MathLib.sol";
+import {LendingPool} from "src/core/LendingPool.sol";
+import {InterestRateModel} from "src/core/InterestRateModel.sol";
+import {ILendingPool} from "src/interfaces/ILendingPool.sol";
+import {PoolToken} from "src/core/PoolToken.sol";
+import {MockOracle} from "src/mocks/MockOracle.sol";
+import {MockERC20} from "src/mocks/MockERC20.sol";
+import {MathLib} from "src/libraries/MathLib.sol";
+import {Errors} from "src/libraries/Errors.sol";
 
 contract DepositBorrowRepayTest is Test {
     using MathLib for uint256;
@@ -51,13 +52,11 @@ contract DepositBorrowRepayTest is Test {
         oracle.setPrice(address(weth), WETH_PRICE);
         oracle.setPrice(address(usdc), USDC_PRICE);
 
-        // Deploy pool token (need pool address first, so we'll do a workaround)
-        // In production, factory would handle this
-        address predictedPool = computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
-        poolToken = new PoolToken(predictedPool, "IP WETH/USDC", "ipWETH-USDC");
-
         // Deploy pool
         pool = new LendingPool();
+
+        poolToken = new PoolToken(address(pool), "IP WETH/USDC", "ipWETH-USDC");
+
         pool.initialize(
             ILendingPool.MarketConfig({
                 collateralToken: address(weth),
@@ -242,7 +241,7 @@ contract DepositBorrowRepayTest is Test {
         // Try to borrow more than 75% LTV
         uint256 aliceMaxBorrow = pool.getMaxBorrow(alice);
         vm.prank(alice);
-        vm.expectRevert(LendingPool.WouldBeUndercollateralized.selector);
+        vm.expectRevert(Errors.WouldBeUndercollateralized.selector);
         pool.borrow(aliceMaxBorrow + 1); // > $15,000 max
     }
 
@@ -455,7 +454,7 @@ contract DepositBorrowRepayTest is Test {
 
         // Try to withdraw too much collateral
         vm.prank(alice);
-        vm.expectRevert(LendingPool.WouldBeUndercollateralized.selector);
+        vm.expectRevert(Errors.WouldBeUndercollateralized.selector);
         pool.withdrawCollateral(8e18); // Would leave only $4,000 collateral
     }
 
@@ -498,7 +497,7 @@ contract DepositBorrowRepayTest is Test {
 
         // Bob tries to withdraw more than available
         vm.prank(bob);
-        vm.expectRevert(LendingPool.InsufficientLiquidity.selector);
+        vm.expectRevert(Errors.InsufficientLiquidity.selector);
         pool.withdraw(40_000e6); // Only 30k available
     }
 
@@ -510,7 +509,7 @@ contract DepositBorrowRepayTest is Test {
         pool.depositCollateral(50e18); // Plenty of collateral
 
         vm.prank(alice);
-        vm.expectRevert(LendingPool.InsufficientLiquidity.selector);
+        vm.expectRevert(Errors.InsufficientLiquidity.selector);
         pool.borrow(20_000e6); // Try to borrow more than available
     }
 
@@ -544,7 +543,7 @@ contract DepositBorrowRepayTest is Test {
 
     function test_deposit_zeroAmount_reverts() public {
         vm.prank(alice);
-        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        vm.expectRevert(Errors.ZeroAmount.selector);
         pool.deposit(0);
     }
 
@@ -556,7 +555,7 @@ contract DepositBorrowRepayTest is Test {
         pool.depositCollateral(10e18);
 
         vm.prank(alice);
-        vm.expectRevert(LendingPool.ZeroAmount.selector);
+        vm.expectRevert(Errors.ZeroAmount.selector);
         pool.borrow(0);
     }
 

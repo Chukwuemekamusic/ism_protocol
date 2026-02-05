@@ -22,12 +22,6 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     using MathLib for uint256;
     using SafeERC20 for IERC20;
 
-    error ZeroAmount();
-    error ZeroAddress();
-    error InsufficientBalance();
-    error InsufficientLiquidity();
-    error WouldBeUndercollateralized();
-
     /*//////////////////////////////////////////////////////////////
                                CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -192,7 +186,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @param assets Amount of borrow tokens to deposit
     /// @return shares Amount of pool shares received
     function deposit(uint256 assets) external nonReentrant returns (uint256 shares) {
-        if (assets == 0) revert ZeroAmount();
+        if (assets == 0) revert Errors.ZeroAmount();
 
         accrueInterest();
 
@@ -216,7 +210,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @param assets Amount of borrow tokens to withdraw
     /// @return shares Amount of pool shares burned
     function withdraw(uint256 assets) external nonReentrant returns (uint256 shares) {
-        if (assets == 0) revert ZeroAmount();
+        if (assets == 0) revert Errors.ZeroAmount();
 
         accrueInterest();
 
@@ -249,7 +243,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @notice Deposit collateral
     /// @param amount Amount of collateral to deposit
     function depositCollateral(uint256 amount) external nonReentrant {
-        if (amount == 0) revert ZeroAmount();
+        if (amount == 0) revert Errors.ZeroAmount();
 
         // Update state
         positions[msg.sender].collateralAmount += uint128(amount);
@@ -264,20 +258,20 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @notice Withdraw collateral
     /// @param amount Amount of collateral to withdraw
     function withdrawCollateral(uint256 amount) external nonReentrant {
-        if (amount == 0) revert ZeroAmount();
+        if (amount == 0) revert Errors.ZeroAmount();
 
         accrueInterest();
 
         Position storage pos = positions[msg.sender];
 
         // Check balance
-        if (pos.collateralAmount < amount) revert InsufficientBalance();
+        if (pos.collateralAmount < amount) revert Errors.InsufficientBalance();
 
         // Check if withdrawal would make position unhealthy
         uint256 newCollateral = pos.collateralAmount - amount;
         if (pos.borrowShares > 0) {
             uint256 newHf = _calculateHealthFactor(newCollateral, pos.borrowShares);
-            if (newHf < WAD) revert WouldBeUndercollateralized();
+            if (newHf < WAD) revert Errors.WouldBeUndercollateralized();
         }
 
         // Update state

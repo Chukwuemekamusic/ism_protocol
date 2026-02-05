@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {InterestRateModel} from "../src/core/InterestRateModel.sol";
-import {MathLib} from "../src/libraries/MathLib.sol";
+import {InterestRateModel} from "src/core/InterestRateModel.sol";
+import {MathLib} from "src/libraries/MathLib.sol";
 
 contract InterestRateModelTest is Test {
     using MathLib for uint256;
