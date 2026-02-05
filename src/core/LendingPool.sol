@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {ILendingPool} from "../interfaces/ILendingPool.sol";
 import {IPoolToken} from "src/interfaces/IPoolToken.sol";
@@ -38,30 +39,26 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     // TOKEN REFERENCES
-    IERC20 public immutable collateralToken;
-    IERC20 public immutable borrowToken;
-    IPoolToken public immutable poolToken;
+    IERC20 public collateralToken;
+    IERC20 public borrowToken;
+    IPoolToken public poolToken;
 
     // CONTRACT REFERENCES
     /// @notice Interest rate model for this pool (shared across all markets)
-    IInterestRateModel public immutable interestRateModel;
+    IInterestRateModel public interestRateModel;
     /// @notice The oracle router for this pool
-    IOracleRouter public immutable oracleRouter;
+    IOracleRouter public oracleRouter;
 
     // DECIMALS
-    uint8 public immutable collateralDecimals;
-    uint8 public immutable borrowDecimals;
+    uint8 public collateralDecimals;
+    uint8 public borrowDecimals;
 
     // RISK PARAMETERS
 
-    /// @notice The maximum loan-to-value ratio (e.g., 0.75e18 = 75%)
-    uint64 public immutable ltv;
-    /// @notice The threshold for liquidation (e.g., 0.80e18 = 80%)
-    uint64 public immutable liquidationThreshold;
-    /// @notice The penalty for liquidation (e.g., 0.05e18 = 5%)
-    uint64 public immutable liquidationPenalty;
-    /// @notice The reserve factor (e.g., 0.10e18 = 10%)
-    uint64 public immutable reserveFactor;
+    uint64 public ltv; // (e.g., 0.75e18 = 75%)
+    uint64 public liquidationThreshold; // (e.g., 0.80e18 = 80%)
+    uint64 public liquidationPenalty; // (e.g., 0.05e18 = 5%)
+    uint64 public reserveFactor; // (e.g., 0.10e18 = 10%)
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -103,49 +100,51 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
                              INITIALIZATION
     //////////////////////////////////////////////////////////////*/
 
-    /*//////////////////////////////////////////////////////////////
-                              CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Disable initializers for the implementation contract
+    /// @dev This prevents anyone from initializing the logic contract itself
+    constructor() Ownable(msg.sender) {}
 
-    constructor(
-        address _collateralToken,
-        address _borrowToken,
-        address _interestRateModel,
-        address _oracleRouter,
-        address _poolToken,
-        uint64 _ltv,
-        uint64 _liquidationThreshold,
-        uint64 _liquidationPenalty,
-        uint64 _reserveFactor
-    ) Ownable(msg.sender) {
+    /// @notice Initialize the pool (called by factory)
+    function initialize(MarketConfig calldata config, address _poolToken, address _liquidator, address _factory)
+        external
+    {
+        if (_initialized) revert Errors.AlreadyInitialized();
+        _initialized = true;
+
         {
-            Validator.ensureCollateralTokenIsNotZero(_collateralToken);
-            Validator.ensureBorrowTokenIsNotZero(_borrowToken);
-            Validator.ensureTokenIsNotSame(_collateralToken, _borrowToken);
-            Validator.ensureAddressIsNotZeroAddress(_interestRateModel);
-            Validator.ensureAddressIsNotZeroAddress(_oracleRouter);
+            Validator.ensureCollateralTokenIsNotZero(config.collateralToken);
+            Validator.ensureBorrowTokenIsNotZero(config.borrowToken);
+            Validator.ensureTokenIsNotSame(config.collateralToken, config.borrowToken);
+            Validator.ensureAddressIsNotZeroAddress(config.interestRateModel);
+            Validator.ensureAddressIsNotZeroAddress(config.oracleRouter);
             Validator.ensureAddressIsNotZeroAddress(_poolToken);
+            Validator.ensureAddressIsNotZeroAddress(_liquidator);
+            Validator.ensureAddressIsNotZeroAddress(_factory);
         }
 
-        collateralToken = IERC20(_collateralToken);
-        borrowToken = IERC20(_borrowToken);
+        collateralToken = IERC20(config.collateralToken);
+        borrowToken = IERC20(config.borrowToken);
         poolToken = IPoolToken(_poolToken);
-        interestRateModel = IInterestRateModel(_interestRateModel);
-        oracleRouter = IOracleRouter(_oracleRouter);
+        interestRateModel = IInterestRateModel(config.interestRateModel);
+        oracleRouter = IOracleRouter(config.oracleRouter);
+        liquidator = _liquidator;
+        factory = _factory;
 
-        // Cache decimals
-        collateralDecimals = _getDecimals(_collateralToken);
-        borrowDecimals = _getDecimals(_borrowToken);
+        // cache decimals
+        collateralDecimals = _getDecimals(config.collateralToken);
+        borrowDecimals = _getDecimals(config.borrowToken);
 
         // Set risk parameters
-        ltv = _ltv;
-        liquidationThreshold = _liquidationThreshold;
-        liquidationPenalty = _liquidationPenalty;
-        reserveFactor = _reserveFactor;
+        ltv = config.ltv;
+        liquidationThreshold = config.liquidationThreshold;
+        liquidationPenalty = config.liquidationPenalty;
+        reserveFactor = config.reserveFactor;
 
         // Set initial state
         borrowIndex = WAD;
         lastAccrualTime = block.timestamp;
+
+        emit Initialized(config.collateralToken, config.borrowToken, config.interestRateModel, config.oracleRouter);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,6 +156,10 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     function accrueInterest() public {
         uint256 timeElapsed = block.timestamp - lastAccrualTime;
         if (timeElapsed == 0) return;
+
+        lastAccrualTime = block.timestamp;
+
+        if (totalBorrowAssets == 0) return;
 
         // Get current borrow rate
         uint256 borrowRate = interestRateModel.getBorrowRate(totalSupplyAssets, totalBorrowAssets);
@@ -177,8 +180,6 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
 
         // Remaining interest is added to totalSupplyAssets (suppliers)
         totalSupplyAssets += (interestAccrued - reserveAmount);
-
-        lastAccrualTime = block.timestamp;
 
         emit InterestAccrued(borrowIndex, totalBorrowAssets, reserveAmount);
     }
@@ -235,7 +236,6 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
 
         // Burn pool tokens
         poolToken.burn(msg.sender, shares);
-
         // Transfer tokens out
         borrowToken.safeTransfer(msg.sender, assets);
 
@@ -358,7 +358,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @param amount The amount to lock
     function lockCollateralForLiquidation(address user, uint256 amount) external onlyLiquidator {
         Position storage pos = positions[user];
-        require(pos.collateralAmount >= amount, "Insufficient collateral");
+        if (pos.collateralAmount < amount) revert Errors.InsufficientCollateral();
 
         pos.collateralAmount -= uint128(amount);
         lockedCollateral += amount;
@@ -370,7 +370,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @param user The user whose collateral to unlock
     /// @param amount The amount to unlock
     function unlockCollateralAfterLiquidation(address user, uint256 amount) external onlyLiquidator {
-        require(lockedCollateral >= amount, "Insufficient locked");
+        if (lockedCollateral < amount) revert Errors.InsufficientLocked();
 
         positions[user].collateralAmount += uint128(amount);
         lockedCollateral -= amount;

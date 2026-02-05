@@ -11,9 +11,6 @@ contract PoolToken is ERC20, IPoolToken {
     /// @notice The lending pool that controls this token
     address public immutable pool;
 
-    error OnlyPool();
-    error InvalidPool();
-
     /*//////////////////////////////////////////////////////////////
                               MODIFIERS
     //////////////////////////////////////////////////////////////*/

@@ -5,10 +5,10 @@ import "forge-std/Test.sol";
 import {LendingPool} from "../../src/core/LendingPool.sol";
 import {DutchAuctionLiquidator} from "../../src/core/DutchAuctionLiquidator.sol";
 import {IDutchAuctionLiquidator} from "../../src/interfaces/IDutchAuctionLiquidator.sol";
-import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
 import {InterestRateModel} from "../../src/core/InterestRateModel.sol";
 import {OracleRouter} from "../../src/core/OracleRouter.sol";
 import {IOracleRouter} from "../../src/interfaces/IOracleRouter.sol";
+import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
 import {PoolToken} from "../../src/core/PoolToken.sol";
 import {MockERC20} from "../../src/mocks/MockERC20.sol";
 import {MockChainlinkAggregator} from "../../src/mocks/MockChainlinkAggregator.sol";
@@ -31,10 +31,12 @@ contract LiquidationFlowTest is Test {
     address public charlie = makeAddr("charlie"); // Liquidator
 
     uint256 constant WAD = 1e18;
-    int256 constant INITIAL_ETH_PRICE = 2000e8; // $2000
-    int256 constant INITIAL_USDC_PRICE = 1e8; // $1
+    int256 constant INITIAL_ETH_PRICE = 2000e8;
 
     function setUp() public {
+        // Warp to realistic timestamp
+        vm.warp(1704067200); // Jan 1, 2024
+
         // Deploy tokens
         weth = new MockERC20();
         weth.initialize("Wrapped Ether", "WETH", 18);
@@ -46,7 +48,7 @@ contract LiquidationFlowTest is Test {
         wethFeed.setPrice(INITIAL_ETH_PRICE);
 
         usdcFeed = new MockChainlinkAggregator(8);
-        usdcFeed.setPrice(INITIAL_USDC_PRICE);
+        usdcFeed.setPrice(1e8); // $1
 
         // Deploy oracle router
         oracle = new OracleRouter(address(0));
@@ -55,7 +57,7 @@ contract LiquidationFlowTest is Test {
             IOracleRouter.OracleConfig({
                 chainlinkFeed: address(wethFeed),
                 uniswapPool: address(0),
-                twapWindow: 1800,
+                twapWindow: 0,
                 maxStaleness: 3600,
                 isToken0: true
             })
@@ -65,7 +67,7 @@ contract LiquidationFlowTest is Test {
             IOracleRouter.OracleConfig({
                 chainlinkFeed: address(usdcFeed),
                 uniswapPool: address(0),
-                twapWindow: 1800,
+                twapWindow: 0,
                 maxStaleness: 86400,
                 isToken0: false
             })
@@ -74,7 +76,7 @@ contract LiquidationFlowTest is Test {
         // Deploy interest model
         interestModel = new InterestRateModel(0, 0.04e18, 0.75e18, 0.8e18);
 
-        // Deploy liquidator
+        // Deploy liquidator first (we need its address for pool initialization)
         liquidator = new DutchAuctionLiquidator(
             address(oracle),
             IDutchAuctionLiquidator.AuctionConfig({
@@ -85,29 +87,31 @@ contract LiquidationFlowTest is Test {
             })
         );
 
-        // Deploy pool
+        // Deploy LendingPool
         pool = new LendingPool();
+
+        // Deploy pool token
         poolToken = new PoolToken(address(pool), "IP WETH/USDC", "ipWETH-USDC");
 
+        // Initialize pool with liquidator
         pool.initialize(
             ILendingPool.MarketConfig({
                 collateralToken: address(weth),
                 borrowToken: address(usdc),
                 interestRateModel: address(interestModel),
                 oracleRouter: address(oracle),
-                ltv: 0.75e18,
-                liquidationThreshold: 0.8e18,
-                liquidationPenalty: 0.05e18,
-                reserveFactor: 0.1e18
+                ltv: 0.75e18, // 75% LTV
+                liquidationThreshold: 0.8e18, // 80% liquidation threshold
+                liquidationPenalty: 0.05e18, // 5% liquidation penalty
+                reserveFactor: 0.1e18 // 10% reserve factor
             }),
             address(poolToken),
             address(liquidator),
-            address(this)
+            address(this) // Test contract acts as factory
         );
 
-        // Configure
+        // Authorize pool in liquidator
         liquidator.authorizePool(address(pool), true);
-        pool.setLiquidator(address(liquidator));
 
         // Fund accounts
         weth.mint(alice, 100e18);
@@ -185,11 +189,11 @@ contract LiquidationFlowTest is Test {
         console.log("Charlie WETH gained:", charlieWethAfter - charlieWethBefore);
 
         // 9. Verify Alice's position is updated
-        LendingPool.Position memory alicePos = pool.getPosition(alice);
+        ILendingPool.Position memory alicePos = pool.getPosition(alice);
         console.log("Alice remaining collateral:", alicePos.collateralAmount);
         console.log("Alice remaining debt:", pool.getUserDebt(alice));
 
-        // 10. Verify auction is closed or has remaining
+        // 10. Verify auction state
         IDutchAuctionLiquidator.Auction memory auctionAfter = liquidator.getAuction(auctionId);
         console.log("Auction still active:", auctionAfter.isActive);
     }
@@ -216,7 +220,7 @@ contract LiquidationFlowTest is Test {
         vm.prank(charlie);
         uint256 auctionId = liquidator.startAuction(address(pool), alice);
 
-        // Wait for good price
+        // Wait for good price (15 minutes - past midpoint)
         vm.warp(block.timestamp + 15 minutes);
 
         // Check profit
@@ -241,6 +245,7 @@ contract LiquidationFlowTest is Test {
         vm.prank(alice);
         pool.borrow(10_000e6); // Conservative borrow
 
+        vm.prank(charlie);
         vm.expectRevert();
         liquidator.startAuction(address(pool), alice);
     }
@@ -258,9 +263,11 @@ contract LiquidationFlowTest is Test {
         wethFeed.setPrice(1800e8);
 
         // First auction
+        vm.prank(charlie);
         liquidator.startAuction(address(pool), alice);
 
         // Second auction should fail
+        vm.prank(charlie);
         vm.expectRevert();
         liquidator.startAuction(address(pool), alice);
     }
@@ -277,17 +284,23 @@ contract LiquidationFlowTest is Test {
 
         wethFeed.setPrice(1800e8);
 
+        vm.prank(charlie);
         uint256 auctionId = liquidator.startAuction(address(pool), alice);
 
-        // Warp past auction end
+        // Warp past auction end (20 minutes + 1 second)
         vm.warp(block.timestamp + 21 minutes);
 
         // Liquidation should fail (expired)
+        vm.prank(charlie);
         vm.expectRevert();
         liquidator.liquidate(auctionId, 1000e6);
 
         // Can cancel expired auction
         liquidator.cancelExpiredAuction(auctionId);
+
+        // Verify auction is no longer active
+        IDutchAuctionLiquidator.Auction memory auction = liquidator.getAuction(auctionId);
+        assertFalse(auction.isActive);
     }
 
     function test_partialLiquidation() public {
@@ -514,4 +527,3 @@ contract LiquidationFlowTest is Test {
         assertFalse(auctionAfter.isActive);
     }
 }
-

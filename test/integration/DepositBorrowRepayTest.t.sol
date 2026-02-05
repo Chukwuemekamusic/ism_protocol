@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import {LendingPool} from "../../src/core/LendingPool.sol";
 import {InterestRateModel} from "../../src/core/InterestRateModel.sol";
+import {ILendingPool} from "../../src/interfaces/ILendingPool.sol";
 import {PoolToken} from "../../src/core/PoolToken.sol";
 import {MockOracle} from "../../src/mocks/MockOracle.sol";
 import {MockERC20} from "../../src/mocks/MockERC20.sol";
@@ -21,6 +22,7 @@ contract DepositBorrowRepayTest is Test {
 
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
+    address public mockLiquidator = makeAddr("mockLiquidator");
 
     uint256 constant WAD = 1e18;
     uint256 constant WETH_PRICE = 2000e18; // $2000
@@ -55,16 +57,21 @@ contract DepositBorrowRepayTest is Test {
         poolToken = new PoolToken(predictedPool, "IP WETH/USDC", "ipWETH-USDC");
 
         // Deploy pool
-        pool = new LendingPool(
-            address(weth), // collateral
-            address(usdc), // borrow
-            address(interestModel),
-            address(oracle),
+        pool = new LendingPool();
+        pool.initialize(
+            ILendingPool.MarketConfig({
+                collateralToken: address(weth),
+                borrowToken: address(usdc),
+                interestRateModel: address(interestModel),
+                oracleRouter: address(oracle),
+                ltv: 0.75e18,
+                liquidationThreshold: 0.8e18,
+                liquidationPenalty: 0.05e18,
+                reserveFactor: 0.1e18
+            }),
             address(poolToken),
-            0.75e18, // 75% LTV
-            0.8e18, // 80% liquidation threshold
-            0.05e18, // 5% liquidation penalty
-            0.1e18 // 10% reserve factor
+            mockLiquidator,
+            address(this)
         );
 
         // Fund users

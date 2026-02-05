@@ -4,6 +4,15 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IPoolToken is IERC20 {
+    /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error OnlyPool();
+    error InvalidPool();
+
+    /*//////////////////////////////////////////////////////////////
+                                FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @notice Mint tokens to an address
     /// @param to Recipient address
     /// @param amount Amount to mint

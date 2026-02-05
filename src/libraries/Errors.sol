@@ -16,6 +16,8 @@ library Errors {
     error InvalidBorrowToken();
     error InsufficientBalance();
     error InsufficientLiquidity();
+    error InsufficientCollateral();
+    error InsufficientLocked();
     error WouldBeUndercollateralized();
     error OnlyLiquidator();
     error OnlyFactory();
@@ -42,4 +44,13 @@ library Errors {
     error InvalidAuctionConfigStartPremium();
     error InvalidAuctionConfigEndDiscount();
     error InvalidAuctionConfigCloseFactor();
+
+    // MarketFactory
+    error MarketAlreadyExists(address collateralToken, address borrowToken);
+    error InvalidParameters();
+
+    // MarketRegistry
+    error MarketAlreadyRegistered();
+    error MarketNotFound();
+    error NotAuthorized();
 }
