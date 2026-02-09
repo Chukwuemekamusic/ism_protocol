@@ -58,14 +58,11 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    bool private _initialized; // Initialization flag
+    // ADDRESSES (160 bits each, pack in slot 0-2)
     address public liquidator; // address of authorized liquidator
     address public factory;
 
-    /// @notice User => Position
-    mapping(address => Position) public positions;
-
-    // MARKET STATE
+    // MARKET STATE - UINT256 (256 bits each, one per slot)
     uint256 public totalCollateral; // Total collateral in the pool
     uint256 public totalBorrowAssets; // Total borrows assets (principal + accrued interest)
     uint256 public totalBorrowShares; // Total borrow shares issued
@@ -75,6 +72,12 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     uint256 public totalSupplyAssets; // Total supply assets (what suppliers deposited + interest)
     uint256 public totalSupplyShares; // Total supply shares
     uint256 public lockedCollateral; // Total collateral locked for liquidation
+
+    // FLAGS AND PACKED DATA (pack booleans and small types together)
+    bool private _initialized; // Initialization flag
+
+    /// @notice User => Position
+    mapping(address => Position) public positions;
 
     /*//////////////////////////////////////////////////////////////
                                 MODIFIERS
@@ -153,10 +156,11 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
 
         lastAccrualTime = block.timestamp;
 
-        if (totalBorrowAssets == 0) return;
+        uint256 _totalBorrowAssets = totalBorrowAssets;
+        if (_totalBorrowAssets == 0) return;
 
         // Get current borrow rate
-        uint256 borrowRate = interestRateModel.getBorrowRate(totalSupplyAssets, totalBorrowAssets);
+        uint256 borrowRate = interestRateModel.getBorrowRate(totalSupplyAssets, _totalBorrowAssets);
 
         // Calculate interest factor: (1 + rate × time)
         uint256 interestFactor = WAD + (borrowRate * timeElapsed);
@@ -165,8 +169,10 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
         borrowIndex = borrowIndex.mulWadDown(interestFactor);
 
         // Update total borrows
-        uint256 interestAccrued = totalBorrowAssets.mulWadDown(interestFactor) - totalBorrowAssets;
-        totalBorrowAssets += interestAccrued;
+        uint256 interestAccrued = _totalBorrowAssets.mulWadDown(interestFactor) - _totalBorrowAssets;
+
+        _totalBorrowAssets += interestAccrued;
+        totalBorrowAssets = _totalBorrowAssets;
 
         // Extract protocol reserve
         uint256 reserveAmount = interestAccrued.mulWadDown(reserveFactor);
@@ -175,7 +181,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
         // Remaining interest is added to totalSupplyAssets (suppliers)
         totalSupplyAssets += (interestAccrued - reserveAmount);
 
-        emit InterestAccrued(borrowIndex, totalBorrowAssets, reserveAmount);
+        emit InterestAccrued(borrowIndex, _totalBorrowAssets, reserveAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
