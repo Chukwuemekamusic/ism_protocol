@@ -445,6 +445,14 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
         return _convertToAssets(shares, totalSupplyAssets, totalSupplyShares, false);
     }
 
+    /// @notice Get user's underlying asset balance (convenience function)
+    /// @param user Address to query
+    /// @return Underlying asset value of user's pool token shares
+    function balanceOfUnderlying(address user) external view returns (uint256) {
+        uint256 shares = poolToken.balanceOf(user);
+        return _convertToAssets(shares, totalSupplyAssets, totalSupplyShares, false);
+    }
+
     /// @notice Get User's max additional borrow amount
     function getMaxBorrow(address user) external view returns (uint256) {
         Position memory pos = positions[user];

@@ -126,6 +126,7 @@ interface ILendingPool {
     // View
     function convertToShares(uint256 assets) external view returns (uint256);
     function convertToAssets(uint256 shares) external view returns (uint256);
+    function balanceOfUnderlying(address user) external view returns (uint256);
 
     // Admin
     function setLiquidator(address _liquidator) external;

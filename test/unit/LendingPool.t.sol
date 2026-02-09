@@ -95,6 +95,81 @@ contract LendingPoolTest is Test {
         assertEq(poolToken.balanceOf(bob), shares);
     }
 
+    function test_balanceOfUnderlying_single_user() public {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+
+        vm.startPrank(bob);
+        borrowToken.approve(address(pool), depositAmount);
+        pool.deposit(depositAmount);
+        vm.stopPrank();
+
+        // Check balance immediately after deposit
+        uint256 underlyingBalance = pool.balanceOfUnderlying(bob);
+        assertEq(underlyingBalance, depositAmount);
+    }
+
+    function test_balanceOfUnderlying_zero_for_non_supplier() public {
+        // Check balance for user with no supply
+        uint256 underlyingBalance = pool.balanceOfUnderlying(alice);
+        assertEq(underlyingBalance, 0);
+    }
+
+    function test_balanceOfUnderlying_increases_with_interest() public {
+        // Setup: Bob deposits liquidity, Alice borrows with high utilization
+        uint256 depositAmount = 10000e6;
+        vm.startPrank(bob);
+        borrowToken.approve(address(pool), depositAmount);
+        pool.deposit(depositAmount);
+        vm.stopPrank();
+
+        uint256 initialBalance = pool.balanceOfUnderlying(bob);
+        assertEq(initialBalance, depositAmount);
+
+        // Alice needs to deposit more collateral for larger borrow (high utilization triggers interest)
+        uint256 collateralAmount = 10 ether; // Worth $20,000
+        uint256 borrowAmount = 8000e6; // 80% utilization to exceed kink
+
+        vm.startPrank(alice);
+        collateralToken.approve(address(pool), collateralAmount);
+        pool.depositCollateral(collateralAmount);
+        pool.borrow(borrowAmount);
+        vm.stopPrank();
+
+        // Advance time for interest to accrue
+        vm.warp(block.timestamp + 365 days);
+
+        // Trigger interest accrual
+        pool.accrueInterest();
+
+        uint256 finalBalance = pool.balanceOfUnderlying(bob);
+
+        // Balance should be greater due to accrued interest
+        assertGt(finalBalance, initialBalance);
+    }
+
+    function test_balanceOfUnderlying_multiple_users() public {
+        uint256 bobDeposit = 5000e6;
+        uint256 aliceDeposit = 3000e6;
+
+        // Bob deposits
+        vm.startPrank(bob);
+        borrowToken.mint(bob, aliceDeposit); // Give bob extra tokens
+        borrowToken.approve(address(pool), bobDeposit);
+        pool.deposit(bobDeposit);
+        vm.stopPrank();
+
+        // Alice deposits (using her available balance)
+        vm.startPrank(alice);
+        borrowToken.mint(alice, aliceDeposit); // Mint borrow tokens to alice
+        borrowToken.approve(address(pool), aliceDeposit);
+        pool.deposit(aliceDeposit);
+        vm.stopPrank();
+
+        // Verify both balances
+        assertEq(pool.balanceOfUnderlying(bob), bobDeposit);
+        assertEq(pool.balanceOfUnderlying(alice), aliceDeposit);
+    }
+
     function test_depositCollateral() public {
         uint256 collateralAmount = 1 ether;
 
