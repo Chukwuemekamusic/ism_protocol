@@ -146,8 +146,10 @@ contract DeploymentFork is Test {
             poolTokenSymbol: "iWETH-USDC"
         });
 
+        address factoryOwner = marketFactory.owner();
+
         // Attempt to create market
-        vm.prank(address(this));
+        vm.prank(factoryOwner);
         try marketFactory.createMarket(params) returns (address poolAddr) {
             assertTrue(poolAddr != address(0), "Market creation returned zero address");
             console.log("[OK] Market created successfully at:", poolAddr);
@@ -223,45 +225,21 @@ contract DeploymentFork is Test {
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deploy all contracts using DeployCore logic
+    /// @notice Deploy all contracts using shared DeployCore logic
     function _deployContracts() internal {
         deployer = new DeployCore();
 
-        // Extract deployed contracts from the script
-        // Since run() broadcasts, we need to call the internal methods directly
+        // Call shared deployment function (same as production)
         vm.startPrank(address(this));
-
-        // Deploy contracts in order
-        interestRateModel = new InterestRateModel(
-            Constants.BASE_RATE_PER_YEAR, Constants.SLOPE_BEFORE_KINK, Constants.SLOPE_AFTER_KINK, Constants.KINK
-        );
-
-        oracleRouter = new OracleRouter(address(0)); // address(0) for testnet
-
-        marketRegistry = new MarketRegistry();
-
-        lendingPoolImplementation = new LendingPool();
-
-        IDutchAuctionLiquidator.AuctionConfig memory auctionConfig = IDutchAuctionLiquidator.AuctionConfig({
-            duration: Constants.AUCTION_DURATION,
-            startPremium: Constants.START_PREMIUM,
-            endDiscount: Constants.END_DISCOUNT,
-            closeFactor: Constants.CLOSE_FACTOR
-        });
-
-        dutchAuctionLiquidator = new DutchAuctionLiquidator(address(oracleRouter), auctionConfig);
-
-        marketFactory = new MarketFactory(
-            address(lendingPoolImplementation),
-            address(oracleRouter),
-            address(interestRateModel),
-            address(dutchAuctionLiquidator),
-            address(marketRegistry)
-        );
-
-        // Authorize factory
-        IMarketRegistry(address(marketRegistry)).setFactory(address(marketFactory), true);
-
+        DeployCore.DeploymentAddresses memory addresses = deployer.deployContracts();
         vm.stopPrank();
+
+        // Extract addresses from struct into state variables
+        interestRateModel = InterestRateModel(addresses.interestRateModel);
+        oracleRouter = OracleRouter(addresses.oracleRouter);
+        dutchAuctionLiquidator = DutchAuctionLiquidator(addresses.dutchAuctionLiquidator);
+        marketRegistry = MarketRegistry(addresses.marketRegistry);
+        lendingPoolImplementation = LendingPool(addresses.lendingPoolImplementation);
+        marketFactory = MarketFactory(addresses.marketFactory);
     }
 }

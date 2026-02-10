@@ -17,13 +17,27 @@ import {IDutchAuctionLiquidator} from "src/interfaces/IDutchAuctionLiquidator.so
 import {IMarketRegistry} from "src/interfaces/IMarketRegistry.sol";
 import {Constants} from "./Constants.s.sol";
 
-// forge script script/DeployCore.s.sol:DeployCore
-// --rpc-url $BASE_SEPOLIA_RPC_URL
-// --broadcast
-// --etherscan-api-key $ETHERSCAN_API_KEY
-// --verify
+// forge script script/DeployCore.s.sol:DeployCore \
+// --rpc-url $BASE_SEPOLIA_RPC_URL \
+// --account testnet \
+// --broadcast \
+// --etherscan-api-key $ETHERSCAN_API_KEY \
+// --verify \
 // --slow
 contract DeployCore is Script {
+    /*//////////////////////////////////////////////////////////////
+                        DATA STRUCTURES
+    //////////////////////////////////////////////////////////////*/
+
+    struct DeploymentAddresses {
+        address interestRateModel;
+        address oracleRouter;
+        address dutchAuctionLiquidator;
+        address marketRegistry;
+        address lendingPoolImplementation;
+        address marketFactory;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         DEPLOYMENT VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -42,11 +56,20 @@ contract DeployCore is Script {
     //////////////////////////////////////////////////////////////*/
 
     function run() external {
-        // Get the deployer's private key from environment
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast();
 
-        // Start broadcasting transactions
-        vm.startBroadcast(deployerKey);
+        // Deploy all contracts (shared logic)
+        deployContracts();
+
+        vm.stopBroadcast();
+
+        // Save deployment addresses to JSON file (only for production deploys)
+        saveDeploymentAddresses();
+    }
+
+    /// @notice Deploy all core contracts (shared logic for tests and production)
+    /// @return addresses Struct containing all deployed contract addresses
+    function deployContracts() public returns (DeploymentAddresses memory) {
         console.log("========== ISM Protocol Core Deployment ==========");
         console.log("Deployer address:", msg.sender);
         console.log("Chain ID:", block.chainid);
@@ -68,13 +91,18 @@ contract DeployCore is Script {
         console.log("\nSTEP 3: Configuring permissions...");
         configurePermissions();
 
-        vm.stopBroadcast();
-
         console.log("\n========== Deployment Complete ==========");
         logDeploymentAddresses();
 
-        // Save deployment addresses to JSON file
-        saveDeploymentAddresses();
+        // Return addresses for programmatic access
+        return DeploymentAddresses({
+            interestRateModel: interestRateModel,
+            oracleRouter: oracleRouter,
+            dutchAuctionLiquidator: dutchAuctionLiquidator,
+            marketRegistry: marketRegistry,
+            lendingPoolImplementation: lendingPoolImplementation,
+            marketFactory: marketFactory
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,6 +246,8 @@ contract DeployCore is Script {
     function saveDeploymentAddresses() internal {
         // Create JSON with contract addresses
         string memory json = "deployment";
+
+        // Serialize all addresses (intermediate calls don't need to be captured)
         vm.serializeAddress(json, "interestRateModel", interestRateModel);
         vm.serializeAddress(json, "oracleRouter", oracleRouter);
         vm.serializeAddress(json, "marketRegistry", marketRegistry);
@@ -225,12 +255,12 @@ contract DeployCore is Script {
         vm.serializeAddress(json, "dutchAuctionLiquidator", dutchAuctionLiquidator);
         vm.serializeAddress(json, "marketFactory", marketFactory);
 
-        // Add metadata
+        // Add metadata (intermediate calls)
         vm.serializeUint(json, "chainId", block.chainid);
         vm.serializeUint(json, "deploymentTimestamp", block.timestamp);
-        vm.serializeAddress(json, "deployer", msg.sender);
 
-        string memory finalJson = json;
+        // IMPORTANT: Capture the LAST serialization call to get the complete JSON
+        string memory finalJson = vm.serializeAddress(json, "deployer", msg.sender);
 
         // Ensure deployments directory exists
         string memory deploymentsDir = "deployments";

@@ -9,6 +9,14 @@ import {Constants} from "./Constants.s.sol";
 import {IMarketFactory} from "src/interfaces/IMarketFactory.sol";
 import {IOracleRouter} from "src/interfaces/IOracleRouter.sol";
 
+// forge script script/DeployMarket.s.sol:DeployMarket \
+// --rpc-url $BASE_SEPOLIA_RPC_URL \
+// --account testnet \
+// --broadcast \
+// --verify \
+// --etherscan-api-key $ETHERSCAN_API_KEY \
+// --slow
+
 /// @title DeployMarket
 /// @notice Script to create a new lending market using existing core infrastructure
 /// @dev Reads core contract addresses from deployment JSON and creates a market
@@ -34,11 +42,8 @@ contract DeployMarket is DeploymentHelper {
         console.log("================================================\n");
 
         // Get deployer key
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerKey);
-        console.log("Deployer:", deployer);
 
-        vm.startBroadcast(deployerKey);
+        vm.startBroadcast();
 
         // Step 1: Configure oracle feeds (if not already configured)
         console.log("\nSTEP 1: Configuring oracle feeds...");
