@@ -12,3 +12,8 @@ docs/
 
 # Dotenv file
 .env
+
+# Deployment artifacts
+# Keep testnet/local deployments out of git, but commit mainnet deployments
+deployments/31337.json
+deployments/84532.json

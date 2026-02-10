@@ -41,10 +41,14 @@ contract MarketRegistry is IMarketRegistry, Ownable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyAuthorized() {
+        _onlyAuthorized();
+        _;
+    }
+
+    function _onlyAuthorized() internal view {
         if (!authorizedFactories[msg.sender] && msg.sender != owner()) {
             revert Errors.NotAuthorized();
         }
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////

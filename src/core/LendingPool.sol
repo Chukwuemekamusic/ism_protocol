@@ -84,13 +84,21 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyLiquidator() {
-        if (msg.sender != liquidator) revert Errors.OnlyLiquidator();
+        _onlyLiquidator();
         _;
     }
 
+    function _onlyLiquidator() internal view {
+        if (msg.sender != liquidator) revert Errors.OnlyLiquidator();
+    }
+
     modifier onlyFactory() {
-        if (msg.sender != factory) revert Errors.OnlyFactory();
+        _onlyFactory();
         _;
+    }
+
+    function _onlyFactory() internal view {
+        if (msg.sender != factory) revert Errors.OnlyFactory();
     }
 
     /*//////////////////////////////////////////////////////////////

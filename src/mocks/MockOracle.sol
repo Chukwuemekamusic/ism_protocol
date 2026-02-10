@@ -30,11 +30,11 @@ contract MockOracle is IOracleRouter {
 
     function setOracleConfig(address token, OracleConfig calldata config) external {}
 
-    function isConfigured(address token) external view returns (bool) {
+    function isConfigured(address token) external pure returns (bool) {
         return true;
     }
 
-    function getOracleConfig(address token) external view returns (OracleConfig memory) {
+    function getOracleConfig(address token) external pure returns (OracleConfig memory) {
         return OracleConfig(address(0), address(0), 0, 0, false);
     }
 }

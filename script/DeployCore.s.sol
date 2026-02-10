@@ -15,26 +15,15 @@ import {MarketFactory} from "src/core/MarketFactory.sol";
 // Interfaces
 import {IDutchAuctionLiquidator} from "src/interfaces/IDutchAuctionLiquidator.sol";
 import {IMarketRegistry} from "src/interfaces/IMarketRegistry.sol";
+import {Constants} from "./Constants.s.sol";
 
+// forge script script/DeployCore.s.sol:DeployCore
+// --rpc-url $BASE_SEPOLIA_RPC_URL
+// --broadcast
+// --etherscan-api-key $ETHERSCAN_API_KEY
+// --verify
+// --slow
 contract DeployCore is Script {
-    /*//////////////////////////////////////////////////////////////
-                            CONSTANTS
-    //////////////////////////////////////////////////////////////*/
-
-    uint256 constant WAD = 1e18;
-
-    // Interest Rate Model parameters (from documentation/tests)
-    uint256 constant BASE_RATE_PER_YEAR = 0; // 0% base rate
-    uint256 constant SLOPE_BEFORE_KINK = 0.04e18; // 4% per year
-    uint256 constant SLOPE_AFTER_KINK = 0.75e18; // 75% per year
-    uint256 constant KINK = 0.8e18; // 80% utilization threshold
-
-    // Dutch Auction configuration
-    uint64 constant AUCTION_DURATION = 1200; // 20 minutes
-    uint64 constant START_PREMIUM = 1.05e18; // 105% of oracle price
-    uint64 constant END_DISCOUNT = 0.95e18; // 95% of oracle price
-    uint64 constant CLOSE_FACTOR = 0.5e18; // 50% max debt liquidatable
-
     /*//////////////////////////////////////////////////////////////
                         DEPLOYMENT VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -55,14 +44,13 @@ contract DeployCore is Script {
     function run() external {
         // Get the deployer's private key from environment
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerKey);
 
+        // Start broadcasting transactions
+        vm.startBroadcast(deployerKey);
         console.log("========== ISM Protocol Core Deployment ==========");
-        console.log("Deployer address:", deployer);
+        console.log("Deployer address:", msg.sender);
         console.log("Chain ID:", block.chainid);
         console.log("================================================\n");
-
-        vm.startBroadcast(deployerKey);
 
         // Step 1: Deploy standalone contracts (no dependencies)
         console.log("STEP 1: Deploying standalone contracts...");
@@ -84,6 +72,9 @@ contract DeployCore is Script {
 
         console.log("\n========== Deployment Complete ==========");
         logDeploymentAddresses();
+
+        // Save deployment addresses to JSON file
+        saveDeploymentAddresses();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,10 +91,7 @@ contract DeployCore is Script {
 
         interestRateModel = address(
             new InterestRateModel(
-                BASE_RATE_PER_YEAR,
-                SLOPE_BEFORE_KINK,
-                SLOPE_AFTER_KINK,
-                KINK
+                Constants.BASE_RATE_PER_YEAR, Constants.SLOPE_BEFORE_KINK, Constants.SLOPE_AFTER_KINK, Constants.KINK
             )
         );
 
@@ -145,17 +133,14 @@ contract DeployCore is Script {
         console.log("  End Discount: 95%%");
         console.log("  Close Factor: 50%%");
 
-        IDutchAuctionLiquidator.AuctionConfig memory config = IDutchAuctionLiquidator
-            .AuctionConfig({
-                duration: AUCTION_DURATION,
-                startPremium: START_PREMIUM,
-                endDiscount: END_DISCOUNT,
-                closeFactor: CLOSE_FACTOR
-            });
+        IDutchAuctionLiquidator.AuctionConfig memory config = IDutchAuctionLiquidator.AuctionConfig({
+            duration: Constants.AUCTION_DURATION,
+            startPremium: Constants.START_PREMIUM,
+            endDiscount: Constants.END_DISCOUNT,
+            closeFactor: Constants.CLOSE_FACTOR
+        });
 
-        dutchAuctionLiquidator = address(
-            new DutchAuctionLiquidator(oracleRouter, config)
-        );
+        dutchAuctionLiquidator = address(new DutchAuctionLiquidator(oracleRouter, config));
 
         console.log("[OK] DutchAuctionLiquidator deployed:", dutchAuctionLiquidator);
     }
@@ -171,11 +156,7 @@ contract DeployCore is Script {
 
         marketFactory = address(
             new MarketFactory(
-                lendingPoolImplementation,
-                oracleRouter,
-                interestRateModel,
-                dutchAuctionLiquidator,
-                marketRegistry
+                lendingPoolImplementation, oracleRouter, interestRateModel, dutchAuctionLiquidator, marketRegistry
             )
         );
 
@@ -197,16 +178,19 @@ contract DeployCore is Script {
     function getSequencerUptimeFeed() internal view returns (address) {
         if (block.chainid == 8453) {
             // Base Mainnet
-            return 0xbCf85224fC0756b9Fa45Aa7892130B8Ac4eda50a;
+            return Constants.SEQUENCER_UPTIME_FEED_BASE_MAINNET;
         } else if (block.chainid == 84532) {
-            // Base Sepolia
-            return 0x07f2985C78CD78f585880c1b8c1e1AB6F9C76D79;
+            // Base Sepolia - No official sequencer feed on testnet
+            console.log("  WARNING: Base Sepolia testnet. Sequencer feed not available.");
+            console.log("  Deploying with address(0) - sequencer check will be skipped.");
+            return address(0);
         } else if (block.chainid == 31337) {
             // Local Anvil (return zero address - will need to be mocked)
             console.log("  WARNING: Local chain detected. Sequencer feed not available.");
             console.log("  Use address(0) or mock sequencer feed in tests.");
             return address(0);
         } else {
+            // Unsupported chain
             revert("Unsupported chain ID");
         }
     }
@@ -229,4 +213,37 @@ contract DeployCore is Script {
         console.log("   factory.createMarket(collateral, borrow, params)");
         console.log("3. Authorize pools in liquidator (automatic on market creation)");
     }
+
+    /// @notice Save deployment addresses to JSON file for programmatic access
+    function saveDeploymentAddresses() internal {
+        // Create JSON with contract addresses
+        string memory json = "deployment";
+        vm.serializeAddress(json, "interestRateModel", interestRateModel);
+        vm.serializeAddress(json, "oracleRouter", oracleRouter);
+        vm.serializeAddress(json, "marketRegistry", marketRegistry);
+        vm.serializeAddress(json, "lendingPoolImplementation", lendingPoolImplementation);
+        vm.serializeAddress(json, "dutchAuctionLiquidator", dutchAuctionLiquidator);
+        vm.serializeAddress(json, "marketFactory", marketFactory);
+
+        // Add metadata
+        vm.serializeUint(json, "chainId", block.chainid);
+        vm.serializeUint(json, "deploymentTimestamp", block.timestamp);
+        vm.serializeAddress(json, "deployer", msg.sender);
+
+        string memory finalJson = json;
+
+        // Ensure deployments directory exists
+        string memory deploymentsDir = "deployments";
+        if (!vm.isDir(deploymentsDir)) {
+            vm.createDir(deploymentsDir, false);
+        }
+
+        // Save to chain-specific file
+        string memory filename = string.concat(deploymentsDir, "/", vm.toString(block.chainid), ".json");
+        vm.writeJson(finalJson, filename);
+
+        console.log("\n[OK] Deployment addresses saved to:", filename);
+    }
+
+    // function deployContract() external {}
 }

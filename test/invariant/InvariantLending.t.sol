@@ -139,6 +139,7 @@ contract InvariantLending is Test {
 
         // Available liquidity should be positive
         uint256 availableLiquidity = totalSupply - totalBorrows - totalReserves;
+        // forge-lint: disable-next-line(unsafe-typecast)
         assertTrue(int256(availableLiquidity) >= 0, "Available liquidity should never be negative");
     }
 

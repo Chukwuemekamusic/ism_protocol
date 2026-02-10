@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {LendingPool} from "src/core/LendingPool.sol";
 import {InterestRateModel} from "src/core/InterestRateModel.sol";
 import {ILendingPool} from "src/interfaces/ILendingPool.sol";

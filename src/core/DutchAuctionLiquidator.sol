@@ -146,6 +146,7 @@ contract DutchAuctionLiquidator is IDutchAuctionLiquidator, ReentrancyGuard, Own
         auctions[auctionId] = Auction({
             user: user,
             pool: pool,
+            // forge-lint: disable-next-line(unsafe-typecast)
             debtToRepay: uint128(debtToRepay),
             collateralForSale: uint128(collateralToSeize),
             startTime: uint64(block.timestamp),

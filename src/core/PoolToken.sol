@@ -16,8 +16,12 @@ contract PoolToken is ERC20, IPoolToken {
     //////////////////////////////////////////////////////////////*/
 
     modifier onlyPool() {
-        if (msg.sender != pool) revert OnlyPool();
+        _onlyPool();
         _;
+    }
+
+    function _onlyPool() internal view {
+        if (msg.sender != pool) revert OnlyPool();
     }
 
     /*//////////////////////////////////////////////////////////////
