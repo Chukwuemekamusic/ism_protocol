@@ -41,8 +41,8 @@ contract DeploymentFork is Test {
 
     function setUp() public {
         // Fork Base mainnet or sepolia
-        // Requires BASE_MAINNET_RPC_URL or BASE_SEPOLIA_RPC_URL env var
-        string memory rpcUrl = vm.envString("BASE_MAINNET_RPC_URL");
+        // let's use a standard base mainnet url
+        string memory rpcUrl = "https://mainnet.base.org";
         vm.createFork(rpcUrl);
     }
 
