@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Build output
+dist/
+build/
+
+# Auto-generated files (regenerate with npm run extract-abis)
+src/contracts/abis.generated.ts
+src/contracts/abis.human-readable.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

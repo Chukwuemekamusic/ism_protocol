@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "extract-abis": "tsx scripts/extract-abis.ts",
+    "prebuild": "npm run extract-abis",
+    "extract": "tsx scripts/extract-abis_2.ts"
   },
   "keywords": [],
   "author": "",
