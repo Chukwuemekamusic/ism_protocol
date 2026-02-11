@@ -13,10 +13,7 @@ interface IUniswapV3Pool {
     function observe(uint32[] calldata secondsAgos)
         external
         view
-        returns (
-            int56[] memory tickCumulatives,
-            uint160[] memory secondsPerLiquidityCumulativeX128s
-        );
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s);
 
     /// @notice The first of the two tokens of the pool, sorted by address
     /// @return The token0 address

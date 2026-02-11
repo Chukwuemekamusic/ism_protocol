@@ -14,22 +14,22 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
     address private _token0;
     address private _token1;
     uint24 private _fee;
-    
+
     // Current pool state
     uint160 private _sqrtPriceX96;
     int24 private _currentTick;
-    
+
     // For TWAP simulation
     int56 private _tickCumulative;
     uint160 private _secondsPerLiquidityCumulativeX128;
-    
+
     // Manual TWAP tick setting
     int24 private _twapTick;
     bool private _useTwapTick;
-    
+
     // Control behavior
     bool private _shouldRevert;
-    
+
     // Observation history (simplified)
     mapping(uint256 => Observation) private _observations;
     uint256 private _observationIndex;
@@ -52,11 +52,11 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         _token0 = token0_;
         _token1 = token1_;
         _fee = 3000; // 0.3% default fee
-        
+
         // Initialize with a reasonable tick (~$2000 ETH/USDC)
         _currentTick = 74959; // approximately ln(2000) / ln(1.0001)
         _sqrtPriceX96 = 1771595571142957166518320255467520; // sqrt(2000) * 2^96
-        
+
         // Initialize first observation
         _observations[0] = Observation({
             blockTimestamp: uint32(block.timestamp),
@@ -127,26 +127,23 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
     function setupTwapObservations(int24 avgTick, uint32 windowSeconds) external {
         uint32 currentTime = uint32(block.timestamp);
         uint32 pastTime = currentTime - windowSeconds;
-        
+
         // Past observation
         _observations[0] = Observation({
-            blockTimestamp: pastTime,
-            tickCumulative: 0,
-            secondsPerLiquidityCumulativeX128: 0,
-            initialized: true
+            blockTimestamp: pastTime, tickCumulative: 0, secondsPerLiquidityCumulativeX128: 0, initialized: true
         });
-        
+
         // Current observation
         // tickCumulative increases by avgTick every second
         int56 currentTickCumulative = int56(avgTick) * int56(uint56(windowSeconds));
-        
+
         _observations[1] = Observation({
             blockTimestamp: currentTime,
             tickCumulative: currentTickCumulative,
             secondsPerLiquidityCumulativeX128: 0,
             initialized: true
         });
-        
+
         _observationIndex = 1;
         _currentTick = avgTick;
     }
@@ -160,10 +157,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         external
         view
         override
-        returns (
-            int56[] memory tickCumulatives,
-            uint160[] memory secondsPerLiquidityCumulativeX128s
-        )
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
     {
         if (_shouldRevert) {
             revert("Observation unavailable");
@@ -187,10 +181,10 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         // Use stored observations
         for (uint256 i = 0; i < secondsAgos.length; i++) {
             uint32 targetTime = uint32(block.timestamp) - secondsAgos[i];
-            
+
             // Find closest observation
             (int56 tickCum, uint160 secPerLiq) = _getObservationAt(targetTime);
-            
+
             tickCumulatives[i] = tickCum;
             secondsPerLiquidityCumulativeX128s[i] = secPerLiq;
         }
@@ -242,14 +236,14 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get observation at a specific timestamp (simplified interpolation)
-    function _getObservationAt(uint32 targetTime) 
-        internal 
-        view 
-        returns (int56 tickCumulative, uint160 secondsPerLiquidityCumulative) 
+    function _getObservationAt(uint32 targetTime)
+        internal
+        view
+        returns (int56 tickCumulative, uint160 secondsPerLiquidityCumulative)
     {
         // Simple implementation: find closest observation or interpolate
         Observation memory obs = _observations[_observationIndex];
-        
+
         if (!obs.initialized) {
             // Return based on current tick
             return (int56(_currentTick) * int56(uint56(targetTime)), 0);
@@ -258,7 +252,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         // Linear interpolation based on current tick
         int56 timeDelta = int56(uint56(targetTime)) - int56(uint56(obs.blockTimestamp));
         tickCumulative = obs.tickCumulative + (int56(_currentTick) * timeDelta);
-        
+
         return (tickCumulative, 0);
     }
 
@@ -284,11 +278,11 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         // Simplified: tick ≈ log2(price) * 6932 (since log(1.0001) ≈ 1/6932)
         // This is approximate but good enough for testing
         require(price > 0, "Price must be positive");
-        
+
         // For price around 2000, tick ≈ 74959
         // For price around 1800, tick ≈ 74363
         // For price around 2200, tick ≈ 75525
-        
+
         // Use a lookup-based approximation for common test values
         if (price >= 2200e18) return 75525;
         if (price >= 2000e18) return 74959;
@@ -297,7 +291,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         if (price >= 1400e18) return 73090;
         if (price >= 1200e18) return 72397;
         if (price >= 1000e18) return 71657;
-        
+
         // Fallback for other values
         return 70000;
     }
@@ -315,7 +309,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         if (tick >= 73090) return 1400e18;
         if (tick >= 72397) return 1200e18;
         if (tick >= 71657) return 1000e18;
-        
+
         return 500e18; // Fallback
     }
 }

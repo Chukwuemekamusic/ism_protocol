@@ -18,7 +18,7 @@ interface IDutchAuctionLiquidator {
         uint64 endTime; // Auction end timestamp
         uint256 startPrice; // Starting price (premium over oracle)
         uint256 endPrice; // Ending price (discount from oracle)
-        bool isActive; // Auction status
+        bool isActive; // Auction status.
     }
 
     /// @notice Auction configuration
