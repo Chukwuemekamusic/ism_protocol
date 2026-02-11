@@ -1,19 +1,36 @@
+## FOUNDRY
 # Compiler files
-cache/
-out/
+contracts/cache/
+contracts/out/
+
+contracts/gas-snapshot
 
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
+## NODE
+liquidation_bot/node_modules/
+liquidation_bot/dist/
+liquidation_bot/.env
+
 # Docs
 docs/
 
-# Dotenv file
+# Environment files
 .env
+*.log
 
 # Deployment artifacts
 # Keep testnet/local deployments out of git, but commit mainnet deployments
 deployments/31337.json
 deployments/84532.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

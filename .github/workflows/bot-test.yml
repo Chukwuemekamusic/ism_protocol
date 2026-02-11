@@ -1,0 +1,43 @@
+name: Liquidation Bot CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    paths:
+      - 'liquidation_bot/**'
+      - '.github/workflows/bot-test.yml'
+  pull_request:
+    paths:
+      - 'liquidation_bot/**'
+      - '.github/workflows/bot-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Bot Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./liquidation_bot
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: liquidation_bot/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript compilation
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test

@@ -1,100 +1,135 @@
-# Deployment Addresses
+# Deployment Artifacts
 
-This directory contains deployment addresses for ISM Protocol across different chains.
+This directory contains deployment information for ISM Protocol across different networks.
 
-## File Format
+## File Structure
 
-Each file is named `{chainId}.json` and contains:
+Each network has its own JSON file named by chain ID:
+
+- `8453.json` - Base Mainnet
+- `84532.json` - Base Sepolia
+- `31337.json` - Local Anvil (development)
+
+## JSON Schema
 
 ```json
 {
-  "interestRateModel": "0x...",
-  "oracleRouter": "0x...",
-  "marketRegistry": "0x...",
-  "lendingPoolImplementation": "0x...",
-  "dutchAuctionLiquidator": "0x...",
-  "marketFactory": "0x...",
   "chainId": 84532,
-  "deploymentTimestamp": 1234567890,
-  "deployer": "0x...",
-  "baseRatePerYear": 0,
-  "slopeBeforeKink": "40000000000000000",
-  "slopeAfterKink": "750000000000000000",
-  "kink": "800000000000000000",
-  "auctionDuration": 1200,
-  "startPremium": "1050000000000000000",
-  "endDiscount": "950000000000000000",
-  "closeFactor": "500000000000000000"
+  "network": "base-sepolia",
+  "contracts": {
+    "interestRateModel": "0x...",
+    "oracleRouter": "0x...",
+    "marketRegistry": "0x...",
+    "lendingPoolImplementation": "0x...",
+    "dutchAuctionLiquidator": "0x...",
+    "marketFactory": "0x...",
+    "chainId": 84532,
+    "deploymentTimestamp": 1234567890,
+    "deployer": "0x..."
+  },
+  "markets": [
+    {
+      "pool": "0x...",
+      "collateralToken": "0x...",
+      "borrowToken": "0x...",
+      "poolToken": "0x..."
+    }
+  ],
+  "tokens": {
+    "WETH": "0x4200000000000000000000000000000000000006",
+    "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "WBTC": "0x..."
+  },
+  "oracles": {
+    "ethUsdFeed": "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1",
+    "btcUsdFeed": "0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298",
+    "usdcUsdFeed": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B"
+  }
 }
 ```
 
 ## Supported Chains
 
 - **Base Mainnet** (8453): `8453.json`
-- **Base Sepolia** (84532): `84532.json` *(gitignored - for local testing only)*
-- **Anvil Local** (31337): `31337.json` *(gitignored - for local testing only)*
+- **Base Sepolia** (84532): `84532.json` _(gitignored - for local testing only)_
+- **Anvil Local** (31337): `31337.json` _(gitignored - for local testing only)_
 
-## Usage in Scripts
+## Usage
 
-### Import the helper
+### From Solidity (Foundry Scripts)
 
 ```solidity
-import {DeploymentHelper} from "./DeploymentHelper.sol";
+import {DeploymentHelper} from "script/DeploymentHelper.sol";
 
 contract MyScript is DeploymentHelper {
     function run() external {
         // Load deployment for current chain
         CoreDeployment memory deployment = loadDeployment();
 
-        // Access addresses
+        // Access contract addresses
         address factory = deployment.marketFactory;
         address oracle = deployment.oracleRouter;
-
-        // ... use addresses
     }
 }
 ```
 
-### Check if deployment exists
+### From TypeScript/JavaScript (Liquidation Bot)
 
-```solidity
-if (!deploymentExists()) {
-    revert("Core contracts not deployed on this chain");
-}
+```typescript
+import deployment from "../deployments/84532.json";
+
+const marketFactory = deployment.contracts.marketFactory;
+const oracleRouter = deployment.contracts.oracleRouter;
+const wethAddress = deployment.tokens.WETH;
 ```
 
-## Deployment Process
+### From Python
 
-1. **Deploy core contracts**:
-   ```bash
-   forge script script/DeployCore.s.sol --rpc-url base-sepolia --broadcast --verify
-   ```
+```python
+import json
 
-2. **Addresses automatically saved** to `deployments/{chainId}.json`
+with open('../deployments/84532.json') as f:
+    deployment = json.load(f)
 
-3. **Deploy markets using saved addresses**:
-   ```bash
-   forge script script/DeployMarket.s.sol --rpc-url base-sepolia --broadcast
-   ```
-
-## Git Strategy
-
-- **Mainnet deployments** (8453.json): Committed to git for reference
-- **Testnet/local** (84532.json, 31337.json): Gitignored, regenerated on each deployment
-
-## Example Output
-
-After running `DeployCore.s.sol`:
-
+market_factory = deployment['contracts']['marketFactory']
+oracle_router = deployment['contracts']['oracleRouter']
 ```
-========== Deployment Complete ==========
-InterestRateModel:       0x...
-OracleRouter:            0x...
-MarketRegistry:          0x...
-LendingPool (impl):      0x...
-DutchAuctionLiquidator:  0x...
-MarketFactory:           0x...
-==================================================
 
-[OK] Deployment addresses saved to: deployments/84532.json
+## Updating Deployments
+
+Deployments are automatically updated when running deployment scripts:
+
+```bash
+# Deploy core contracts (creates/updates the JSON file)
+cd contracts
+forge script script/DeployCore.s.sol --rpc-url $RPC_URL --broadcast
+
+# Deploy a new market (adds to markets array)
+forge script script/DeployMarket.s.sol --rpc-url $RPC_URL --broadcast
 ```
+
+## Network Information
+
+### Base Mainnet (8453)
+
+- RPC: https://mainnet.base.org
+- Explorer: https://basescan.org
+
+### Base Sepolia (84532)
+
+- RPC: https://sepolia.base.org
+- Explorer: https://sepolia.basescan.org
+- Faucet: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet
+
+### Local Anvil (31337)
+
+- RPC: http://localhost:8545
+- Start with: `anvil`
+
+## Important Notes
+
+1. **Never commit private keys** - Only deployment addresses are stored here
+2. **Verify addresses** - Always verify contract addresses on block explorer before use
+3. **Backup** - Keep backups of deployment files before redeploying
+4. **Git tracking** - These files are tracked in git for team coordination
+5. **Monorepo structure** - This folder is shared between `contracts/` and `liquidation-bot/`
