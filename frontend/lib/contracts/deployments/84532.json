@@ -1,0 +1,26 @@
+{
+  "chainId": 84532,
+  "network": "base-sepolia",
+  "contracts": {
+    "interestRateModel": "0x9541DC3DeD3E4733743923255735948C0b6e1d51",
+    "oracleRouter": "0x7C33A9c63211a8EeaF1e7f0B915593041B16F391",
+    "marketRegistry": "0x4A5bAE4a21Eb545Cf6cAdC2D3682520B574103dD",
+    "lendingPoolImplementation": "0x9741303c7571f9EfE3953B804c08e289De576493",
+    "dutchAuctionLiquidator": "0x03FCA954a7FF83AfEb544c8aD929451CA537c730",
+    "marketFactory": "0x1b048C7323C7c7FE910a5F0e08B36b0c715e8947",
+    "chainId": 84532,
+    "deploymentTimestamp": 1770684668,
+    "deployer": "0x6E0056fe681E087160BB40dB0Ae3419Ee6C2ECE4"
+  },
+  "markets": [],
+  "tokens": {
+    "WETH": "0x4200000000000000000000000000000000000006",
+    "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "WBTC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+  },
+  "oracles": {
+    "ethUsdFeed": "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1",
+    "btcUsdFeed": "0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298",
+    "usdcUsdFeed": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B"
+  }
+}
