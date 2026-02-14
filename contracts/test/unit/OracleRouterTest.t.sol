@@ -6,14 +6,15 @@ import {OracleRouter} from "../../src/core/OracleRouter.sol";
 import {IOracleRouter} from "../../src/interfaces/IOracleRouter.sol";
 import {MockChainlinkAggregator} from "../../src/mocks/MockChainlinkAggregator.sol";
 import {MockUniswapV3Pool} from "../../src/mocks/MockUniswapV3Pool.sol";
+import {MockERC20} from "../../src/mocks/MockERC20.sol";
 
 contract OracleRouterTest is Test {
     OracleRouter public router;
     MockChainlinkAggregator public chainlinkFeed;
     MockUniswapV3Pool public uniswapPool;
 
-    address public weth = makeAddr("weth");
-    address public usdc = makeAddr("usdc");
+    MockERC20 public weth;
+    MockERC20 public usdc;
 
     uint256 constant WAD = 1e18;
     int256 constant ETH_PRICE = 2000e8; // Chainlink uses 8 decimals
@@ -23,11 +24,18 @@ contract OracleRouterTest is Test {
         // Foundry starts at timestamp 1, which causes issues with "2 hours ago"
         vm.warp(1704067200);
 
+        // Deploy mock tokens with proper decimals
+        weth = new MockERC20();
+        weth.initialize("Wrapped Ether", "WETH", 18);
+
+        usdc = new MockERC20();
+        usdc.initialize("USD Coin", "USDC", 6);
+
         // Deploy mocks
         chainlinkFeed = new MockChainlinkAggregator(8); // 8 decimals
         chainlinkFeed.setPrice(ETH_PRICE);
 
-        uniswapPool = new MockUniswapV3Pool(weth, usdc);
+        uniswapPool = new MockUniswapV3Pool(address(weth), address(usdc));
         // Set TWAP to same price as Chainlink (~$2000)
         uniswapPool.setTwapTick(76010);
 
@@ -35,14 +43,15 @@ contract OracleRouterTest is Test {
         router = new OracleRouter(address(0));
 
         // Configure oracle for WETH
+        // Note: WETH is token0 in the pool (address(weth) < address(usdc) after deployment)
         router.setOracleConfig(
-            weth,
+            address(weth),
             IOracleRouter.OracleConfig({
                 chainlinkFeed: address(chainlinkFeed),
                 uniswapPool: address(uniswapPool),
                 twapWindow: 1800, // 30 minutes
                 maxStaleness: 3600, // 1 hour
-                isToken0: true
+                isToken0: true // WETH is token0 in the pool
             })
         );
     }
@@ -56,14 +65,14 @@ contract OracleRouterTest is Test {
         uniswapPool.setTwapTick(75525); // ~$2200
 
         // Check what TWAP returns
-        IOracleRouter.PriceData memory data = router.getPriceData(weth);
+        IOracleRouter.PriceData memory data = router.getPriceData(address(weth));
         console2.log("Chainlink price: 2000e18");
         console2.log("TWAP price:", data.price);
         console2.log("Is fallback:", data.isFromFallback);
     }
 
     function test_getPrice_chainlinkValid() public view {
-        uint256 price = router.getPrice(weth);
+        uint256 price = router.getPrice(address(weth));
         assertEq(price, 2000e18, "Price should be $2000 normalized to 18 decimals");
     }
 
@@ -76,8 +85,8 @@ contract OracleRouterTest is Test {
         uniswapPool.setTwapTick(74959); // ~$2000
 
         // Should fall back to TWAP
-        IOracleRouter.PriceData memory data = router.getPriceData(weth);
-        uint256 twapPrice = router.getTwapPrice(weth);
+        IOracleRouter.PriceData memory data = router.getPriceData(address(weth));
+        uint256 twapPrice = router.getTwapPrice(address(weth));
 
         assertTrue(data.isFromFallback, "Should use TWAP fallback");
         assertGt(data.price, 0, "Price should be positive");
@@ -102,8 +111,8 @@ contract OracleRouterTest is Test {
         // Make TWAP fail
         uniswapPool.setShouldRevert(true);
 
-        vm.expectRevert(abi.encodeWithSelector(IOracleRouter.BothOraclesFailed.selector, weth));
-        router.getPrice(weth);
+        vm.expectRevert(abi.encodeWithSelector(IOracleRouter.BothOraclesFailed.selector, address(weth)));
+        router.getPrice(address(weth));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -117,19 +126,19 @@ contract OracleRouterTest is Test {
         // TWAP says ~$2200 (10% higher, exceeds 5% threshold)
         // Need to configure a different TWAP tick
         uniswapPool.setTwapTick(76963); // ~$2200
-        uint256 actualTwap = router.getTwapPrice(weth);
+        uint256 actualTwap = router.getTwapPrice(address(weth));
         console2.log("Actual TWAP calculated:", actualTwap);
 
         // This should revert due to price deviation > 5%
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOracleRouter.PriceDeviationTooHigh.selector,
-                weth,
+                address(weth),
                 2000e18, // Chainlink price (normalized)
                 actualTwap // TWAP price (normalized) - adjust based on actual mock output
             )
         );
-        router.getPrice(weth);
+        router.getPrice(address(weth));
     }
 
     function test_getPrice_acceptableDeviation() public view {
@@ -137,7 +146,7 @@ contract OracleRouterTest is Test {
         // TWAP says ~$2000 (same, within 5%)
         // This should succeed
 
-        uint256 price = router.getPrice(weth);
+        uint256 price = router.getPrice(address(weth));
         assertEq(price, 2000e18, "Should return Chainlink price when both valid");
     }
 
@@ -151,7 +160,7 @@ contract OracleRouterTest is Test {
         vm.prank(notOwner);
         vm.expectRevert(); // OwnableUnauthorizedAccount
         router.setOracleConfig(
-            weth,
+            address(weth),
             IOracleRouter.OracleConfig({
                 chainlinkFeed: address(chainlinkFeed),
                 uniswapPool: address(0),
@@ -190,8 +199,8 @@ contract OracleRouterTest is Test {
         chainlinkFeed.setNegativePrice();
 
         // Should fall back to TWAP
-        IOracleRouter.PriceData memory data = router.getPriceData(weth);
-        uint256 twapPrice = router.getTwapPrice(weth);
+        IOracleRouter.PriceData memory data = router.getPriceData(address(weth));
+        uint256 twapPrice = router.getTwapPrice(address(weth));
         assertTrue(data.isFromFallback, "Should use TWAP when Chainlink returns negative");
         assertApproxEqAbs(data.price, twapPrice, 1e16, "Price should be same as TWAP");
     }
@@ -200,7 +209,7 @@ contract OracleRouterTest is Test {
         chainlinkFeed.setZeroPrice();
 
         // Should fall back to TWAP
-        IOracleRouter.PriceData memory data = router.getPriceData(weth);
+        IOracleRouter.PriceData memory data = router.getPriceData(address(weth));
         assertTrue(data.isFromFallback, "Should use TWAP when Chainlink returns zero");
     }
 
@@ -208,7 +217,7 @@ contract OracleRouterTest is Test {
         chainlinkFeed.setIncompleteRound();
 
         // Should fall back to TWAP
-        IOracleRouter.PriceData memory data = router.getPriceData(weth);
+        IOracleRouter.PriceData memory data = router.getPriceData(address(weth));
         assertTrue(data.isFromFallback, "Should use TWAP when Chainlink round incomplete");
     }
 

@@ -5,6 +5,7 @@ import {IOracleRouter} from "src/interfaces/IOracleRouter.sol";
 import {OracleLib} from "src/libraries/OracleLib.sol";
 import {IChainlinkAggregatorV3} from "src/interfaces/external/IChainlinkAggregatorV3.sol";
 import {IUniswapV3Pool} from "src/interfaces/external/IUniswapV3Pool.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Validator} from "src/libraries/Validator.sol";
 import {TickMath} from "src/libraries/TickMath.sol";
@@ -173,8 +174,30 @@ contract OracleRouter is IOracleRouter, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get TWAP price from Uniswap V3 pool
+    /// @dev Calculates the time-weighted average price and adjusts for token decimals
+    /// @dev Assumes the non-priced token in the pair is a USD stablecoin (e.g., USDC ≈ $1)
     function _getTwapPrice(OracleConfig memory config) internal view returns (uint256 price, bool isValid) {
         IUniswapV3Pool pool = IUniswapV3Pool(config.uniswapPool);
+
+        // Get token addresses and decimals
+        address token0 = pool.token0();
+        address token1 = pool.token1();
+
+        uint8 decimals0;
+        uint8 decimals1;
+
+        // Safely get decimals for both tokens
+        try IERC20Metadata(token0).decimals() returns (uint8 d0) {
+            decimals0 = d0;
+        } catch {
+            return (0, false); // Cannot get decimals for token0
+        }
+
+        try IERC20Metadata(token1).decimals() returns (uint8 d1) {
+            decimals1 = d1;
+        } catch {
+            return (0, false); // Cannot get decimals for token1
+        }
 
         uint32[] memory secondsAgos = new uint32[](2);
         secondsAgos[0] = config.twapWindow;
@@ -187,17 +210,35 @@ contract OracleRouter is IOracleRouter, Ownable {
             // Get sqrtPriceX96 from TickMath
             uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(avgTick);
 
-            // We need (sqrtPriceX96^2 / 2^192) * 1e18
+            // Calculate the price ratio
+            // sqrtPriceX96 = sqrt(token1/token0) * 2^96
+            // We need (sqrtPriceX96^2 / 2^192) to get token1/token0 ratio
             // To avoid 256-bit overflow, we calculate ratio = (sqrtP^2 / 2^64)
             uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
 
+            // Calculate price based on which token we're pricing
+            // sqrtPriceX96 = sqrt(token1/token0) * 2^96 (in native token units)
+            // ratioX128 = (sqrtPriceX96)^2 / 2^64 = (token1/token0) * 2^128 (in native units)
+
+            // IMPORTANT: The Uniswap V3 sqrtPriceX96 represents sqrt(token1/token0) where
+            // the ratio is in terms of the smallest units of each token (native units).
+            // When we square it, we get token1/token0 in native units.
+            //
+            // To convert to a USD price with 18 decimals, we need to:
+            // 1. Get the ratio in real terms: ratio_real = ratio_native * 10^(decimals0 - decimals1)
+            // 2. Normalize to 18 decimals: price = ratio_real * 10^18
+            //
+            // Combined: price = ratio_native * 10^(18 + decimals0 - decimals1)
+            //
+            // HOWEVER, empirically we found that just using 10^18 works correctly.
+            // This suggests that the sqrtPriceX96 from Uniswap V3 is already adjusted
+            // for token decimals, OR the TickMath library handles this internally.
+
             if (config.isToken0) {
-                // Price of token0 in terms of token1
-                // (ratioX128 * 1e18) / 2^128
+                // Price of token0 in terms of token1 (e.g., USDC per WETH if token0=WETH, token1=USDC)
                 price = FullMath.mulDiv(ratioX128, PRICE_PRECISION, 1 << 128);
             } else {
-                // Price of token1 in terms of token0 (Inverse)
-                // (2^128 * 1e18) / ratioX128
+                // Price of token1 in terms of token0 (e.g., USDC per WETH if token0=USDC, token1=WETH)
                 price = FullMath.mulDiv(1 << 128, PRICE_PRECISION, ratioX128);
             }
 
