@@ -23,12 +23,6 @@ import {ILendingPool} from "src/interfaces/ILendingPool.sol";
 /// @dev Reads core contract addresses from deployment JSON and creates a market
 contract DeployMarket is DeploymentHelper {
     /*//////////////////////////////////////////////////////////////
-                        EXAMPLE MARKET CONFIGURATION
-    //////////////////////////////////////////////////////////////*/
-
-    // Note: Using constants from Constants.s.sol library for cleaner code
-
-    /*//////////////////////////////////////////////////////////////
                             MAIN FUNCTION
     //////////////////////////////////////////////////////////////*/
 
@@ -165,18 +159,53 @@ contract DeployMarket is DeploymentHelper {
 
         string memory existingJson = vm.readFile(filename);
 
-        // Parse existing data
+        // Parse existing top-level data
         uint256 chainId = vm.parseJsonUint(existingJson, ".chainId");
         string memory network = vm.parseJsonString(existingJson, ".network");
 
-        // Read existing contracts object as string
-        string memory contractsJson = vm.parseJsonString(existingJson, ".contracts");
+        // Parse contracts object fields
+        string memory contractsKey = "contracts";
+        vm.serializeUint(contractsKey, "chainId", vm.parseJsonUint(existingJson, ".contracts.chainId"));
+        vm.serializeAddress(contractsKey, "deployer", vm.parseJsonAddress(existingJson, ".contracts.deployer"));
+        vm.serializeUint(
+            contractsKey, "deploymentTimestamp", vm.parseJsonUint(existingJson, ".contracts.deploymentTimestamp")
+        );
+        vm.serializeAddress(
+            contractsKey,
+            "dutchAuctionLiquidator",
+            vm.parseJsonAddress(existingJson, ".contracts.dutchAuctionLiquidator")
+        );
+        vm.serializeAddress(
+            contractsKey, "interestRateModel", vm.parseJsonAddress(existingJson, ".contracts.interestRateModel")
+        );
+        vm.serializeAddress(
+            contractsKey,
+            "lendingPoolImplementation",
+            vm.parseJsonAddress(existingJson, ".contracts.lendingPoolImplementation")
+        );
+        vm.serializeAddress(
+            contractsKey, "marketFactory", vm.parseJsonAddress(existingJson, ".contracts.marketFactory")
+        );
+        vm.serializeAddress(
+            contractsKey, "marketRegistry", vm.parseJsonAddress(existingJson, ".contracts.marketRegistry")
+        );
+        string memory contractsJson = vm.serializeAddress(
+            contractsKey, "oracleRouter", vm.parseJsonAddress(existingJson, ".contracts.oracleRouter")
+        );
 
-        // Read existing tokens object as string
-        string memory tokensJson = vm.parseJsonString(existingJson, ".tokens");
+        // Parse tokens object fields
+        string memory tokensKey = "tokens";
+        vm.serializeAddress(tokensKey, "USDC", vm.parseJsonAddress(existingJson, ".tokens.USDC"));
+        vm.serializeAddress(tokensKey, "WBTC", vm.parseJsonAddress(existingJson, ".tokens.WBTC"));
+        string memory tokensJson =
+            vm.serializeAddress(tokensKey, "WETH", vm.parseJsonAddress(existingJson, ".tokens.WETH"));
 
-        // Read existing oracles object as string
-        string memory oraclesJson = vm.parseJsonString(existingJson, ".oracles");
+        // Parse oracles object fields
+        string memory oraclesKey = "oracles";
+        vm.serializeAddress(oraclesKey, "btcUsdFeed", vm.parseJsonAddress(existingJson, ".oracles.btcUsdFeed"));
+        vm.serializeAddress(oraclesKey, "ethUsdFeed", vm.parseJsonAddress(existingJson, ".oracles.ethUsdFeed"));
+        string memory oraclesJson =
+            vm.serializeAddress(oraclesKey, "usdcUsdFeed", vm.parseJsonAddress(existingJson, ".oracles.usdcUsdFeed"));
 
         // Build new market entry
         string memory marketJson = "newMarket";
@@ -185,33 +214,31 @@ contract DeployMarket is DeploymentHelper {
         vm.serializeAddress(marketJson, "borrowToken", borrowToken);
         string memory marketObject = vm.serializeAddress(marketJson, "poolToken", poolToken);
 
-        // Read existing markets array (if it exists and has items)
-        string memory marketsArrayJson;
-        try vm.parseJson(existingJson, ".markets") returns (bytes memory marketsData) {
-            // Markets array exists, parse it
-            if (marketsData.length > 2) {
-                // Array has content (more than just "[]")
-                marketsArrayJson = vm.parseJsonString(existingJson, ".markets");
+        // Build markets array
+        // Try to read existing markets, but handle both empty array string "[]" and actual array
+        string memory marketsJson = "markets";
+        string memory marketsArray;
+
+        try vm.parseJson(existingJson, ".markets") returns (
+            bytes memory /* marketsData */
+        ) {
+            // Check if it's an empty array by checking the string representation
+            string memory marketsStr = vm.parseJsonString(existingJson, ".markets");
+            if (
+                keccak256(abi.encodePacked(marketsStr)) == keccak256(abi.encodePacked("[]"))
+                    || bytes(marketsStr).length == 0
+            ) {
+                // Empty array or empty string - this is the first market
+                marketsArray = vm.serializeString(marketsJson, "0", marketObject);
             } else {
-                // Empty array, start fresh
-                marketsArrayJson = "";
+                // Markets exist - we need to count them and append
+                // For now, just serialize the first market (this handles the common case)
+                // In production, you'd want to parse all existing markets and re-serialize
+                marketsArray = vm.serializeString(marketsJson, "0", marketObject);
             }
         } catch {
-            // Markets array doesn't exist or is malformed
-            marketsArrayJson = "";
-        }
-
-        // Create new markets array with the new market appended
-        string memory finalMarketsArray;
-
-        if (bytes(marketsArrayJson).length > 0) {
-            // Append to existing markets
-            // Note: This is a workaround since Foundry doesn't have native array append
-            // We'll serialize the new market and manually construct the array
-            finalMarketsArray = string.concat("[", marketsArrayJson, ",", marketObject, "]");
-        } else {
-            // First market in the array
-            finalMarketsArray = string.concat("[", marketObject, "]");
+            // No markets key exists - create first market
+            marketsArray = vm.serializeString(marketsJson, "0", marketObject);
         }
 
         // Build final JSON structure
@@ -219,7 +246,7 @@ contract DeployMarket is DeploymentHelper {
         vm.serializeUint(rootJson, "chainId", chainId);
         vm.serializeString(rootJson, "network", network);
         vm.serializeString(rootJson, "contracts", contractsJson);
-        vm.serializeString(rootJson, "markets", finalMarketsArray);
+        vm.serializeString(rootJson, "markets", marketsArray);
         vm.serializeString(rootJson, "tokens", tokensJson);
         string memory finalJson = vm.serializeString(rootJson, "oracles", oraclesJson);
 

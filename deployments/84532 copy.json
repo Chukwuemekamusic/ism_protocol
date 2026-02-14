@@ -11,14 +11,7 @@
     "marketRegistry": "0x239E39c868a864c31443F6dF853A86739b90489E",
     "oracleRouter": "0x2d3083b20FcA2341E28283aC47F9e585a5f0C741"
   },
-  "markets": {
-    "0": {
-      "borrowToken": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      "collateralToken": "0x4200000000000000000000000000000000000006",
-      "pool": "0x6deE9CA597a5061EE5D071C84Af8c70d4036c96A",
-      "poolToken": "0x59618A67F3Dd512fdFf0aA3026881e6fA8CbefA0"
-    }
-  },
+  "markets": "[]",
   "network": "base-sepolia",
   "oracles": {
     "btcUsdFeed": "0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298",

@@ -122,6 +122,7 @@ interface ILendingPool {
     // Decimals
     function collateralDecimals() external view returns (uint8);
     function borrowDecimals() external view returns (uint8);
+    function borrowScalar() external view returns (uint256);
 
     // View
     function convertToShares(uint256 assets) external view returns (uint256);

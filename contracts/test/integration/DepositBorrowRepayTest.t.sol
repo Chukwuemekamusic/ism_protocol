@@ -99,10 +99,11 @@ contract DepositBorrowRepayTest is Test {
         vm.prank(alice);
         uint256 shares = pool.deposit(DEPOSIT_AMOUNT);
 
-        // FIXED: Initial 1:1 ratio means shares = assets (in asset decimals)
-        // When totalShares == 0, we get assets back as shares
-        assertEq(shares, DEPOSIT_AMOUNT);
-        assertEq(pool.totalSupplyAssets(), DEPOSIT_AMOUNT);
+        // Shares are scaled to 18 decimals using borrowScalar
+        uint256 expectedShares = DEPOSIT_AMOUNT * pool.borrowScalar();
+        assertEq(shares, expectedShares, "Shares should be scaled to 18 decimals");
+        assertEq(pool.totalSupplyAssets(), DEPOSIT_AMOUNT, "Assets stored in native decimals");
+        assertEq(pool.totalSupplyShares(), expectedShares, "Total shares in 18 decimals");
         assertEq(poolToken.balanceOf(alice), shares);
 
         // verify shares are non-zero and reasonable
@@ -110,6 +111,7 @@ contract DepositBorrowRepayTest is Test {
 
         console.log("Deposit amount:", DEPOSIT_AMOUNT);
         console.log("Shares received:", shares);
+        console.log("BorrowScalar:", pool.borrowScalar());
     }
 
     function test_deposit_multipleUsers() public {

@@ -86,4 +86,15 @@ abstract contract DeploymentHelper is Script {
             revert("Unsupported chain ID");
         }
     }
+
+    /// @notice Get network name from chain ID
+    function getNetworkName(uint256 chainId) internal pure returns (string memory) {
+        if (chainId == 1) return "ethereum-mainnet";
+        if (chainId == 5) return "goerli";
+        if (chainId == 11155111) return "sepolia";
+        if (chainId == 8453) return "base-mainnet";
+        if (chainId == 84532) return "base-sepolia";
+        if (chainId == 31337) return "anvil-local";
+        return "unknown";
+    }
 }

@@ -18,21 +18,6 @@ import {Errors} from "src/libraries/Errors.sol";
 /// @title LendingPool
 /// @notice Isolated lending pool for a single collateral/borrow pair
 /// @dev Each market is a separate instance of this contract
-///
-/// DECIMAL SCALING MODEL:
-/// ----------------------
-/// - All asset amounts (totalBorrowAssets, totalSupplyAssets, totalReserves) are stored in NATIVE decimals
-/// - All share amounts (totalBorrowShares, totalSupplyShares, user shares) are stored in 18 DECIMALS
-/// - borrowScalar = 10^(18 - borrowDecimals) is used to convert native decimals to 18-decimal space
-///
-/// Examples:
-/// - USDC (6 decimals): borrowScalar = 10^12, so 1000 USDC (1000e6) → 1000e18 shares
-/// - WETH (18 decimals): borrowScalar = 10^0 = 1, so 1 WETH (1e18) → 1e18 shares
-///
-/// This ensures:
-/// 1. Consistent share accounting regardless of token decimals
-/// 2. Accurate health factor calculations across different decimal configurations
-/// 3. Proper value normalization when comparing collateral and debt
 contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     using MathLib for uint256;
     using SafeERC20 for IERC20;
@@ -79,15 +64,15 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     address public factory;
 
     // MARKET STATE - UINT256 (256 bits each, one per slot)
-    uint256 public totalCollateral; // Total collateral in the pool (native decimals)
-    uint256 public totalBorrowAssets; // Total borrow assets (native decimals)
-    uint256 public totalBorrowShares; // Total borrow shares (18 decimals)
-    uint256 public borrowIndex; // Borrow index (18 decimals, starts at WAD)
+    uint256 public totalCollateral; // Total collateral in the pool
+    uint256 public totalBorrowAssets; // Total borrows assets (principal + accrued interest)
+    uint256 public totalBorrowShares; // Total borrow shares issued
+    uint256 public borrowIndex; // Borrow index (starts at WAD)
     uint256 public lastAccrualTime; // Last time interest was accrued
-    uint256 public totalReserves; // Total protocol reserves (native decimals)
-    uint256 public totalSupplyAssets; // Total supply assets (native decimals)
-    uint256 public totalSupplyShares; // Total supply shares (18 decimals)
-    uint256 public lockedCollateral; // Total collateral locked for liquidation (native decimals)
+    uint256 public totalReserves; // Total Protocol reserves
+    uint256 public totalSupplyAssets; // Total supply assets (what suppliers deposited + interest)
+    uint256 public totalSupplyShares; // Total supply shares
+    uint256 public lockedCollateral; // Total collateral locked for liquidation
 
     // FLAGS AND PACKED DATA (pack booleans and small types together)
     bool private _initialized; // Initialization flag
@@ -154,8 +139,6 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
         // cache decimals
         collateralDecimals = _getDecimals(config.collateralToken);
         borrowDecimals = _getDecimals(config.borrowToken);
-        // If USDC (6 decimals), scalar is 10^12. If WETH (18), scalar is 1.
-        borrowScalar = 10 ** (18 - borrowDecimals);
 
         // Set risk parameters
         ltv = config.ltv;
@@ -328,14 +311,14 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
 
         accrueInterest();
 
+        Position storage pos = positions[msg.sender];
+
         // check liquidity
         uint256 availableLiquidity = totalSupplyAssets - totalBorrowAssets;
         if (amount > availableLiquidity) revert Errors.InsufficientLiquidity();
 
         // Calculate shares to mint
-        shares = _convertToBorrowShares(amount, false); // TODO: should it be false or true?
-
-        Position storage pos = positions[msg.sender];
+        shares = _convertToBorrowShares(amount, false);
 
         // Check if borrow would exceed LTV
         uint256 newBorrowShares = pos.borrowShares + shares;
@@ -407,7 +390,7 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     /// @notice Execute a liquidation (called by liquidator contract)
     /// @param user The user being liquidated
     /// @param liquidatorAddr The liquidator receiving collateral
-    /// @param debtRepaid Amount of debt being repaid (in native decimals)
+    /// @param debtRepaid Amount of debt being repaid
     /// @param collateralSeized Amount of collateral being seized
     function executeLiquidation(address user, address liquidatorAddr, uint256 debtRepaid, uint256 collateralSeized)
         external
@@ -418,9 +401,8 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
 
         Position storage pos = positions[user];
 
-        // Calculate shares to burn (scale debtRepaid to 18 decimals first)
-        uint256 scaledDebtRepaid = debtRepaid * borrowScalar;
-        uint256 sharesToBurn = scaledDebtRepaid.divWadUp(borrowIndex);
+        // Calculate shares to burn
+        uint256 sharesToBurn = debtRepaid.divWadUp(borrowIndex);
         if (sharesToBurn > pos.borrowShares) {
             sharesToBurn = pos.borrowShares;
         }
@@ -510,48 +492,42 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get user's current debt including accrued interest
-    /// @dev Returns debt in native decimals (converts from 18-decimal shares)
     function _getDebt(uint256 borrowShares) internal view returns (uint256) {
-        // borrowShares (18 decimals) * borrowIndex (18 decimals) / WAD = 18 decimals
-        uint256 debtIn18Decimals = borrowShares.mulWadUp(_simulateAccrual());
-        // Convert back to native decimals
-        return debtIn18Decimals / borrowScalar;
+        return borrowShares.mulWadUp(_simulateAccrual());
     }
 
     /// @notice Convert assets to shares
     function _convertToShares(uint256 assets, uint256 totalAssets, uint256 totalShares, bool roundUp)
         internal
-        view
+        pure
         returns (uint256)
     {
         if (totalShares == 0 || totalAssets == 0) {
-            return assets * borrowScalar;
+            return assets; // 1:1 initially
         }
         if (roundUp) {
             // assets * totalShares / totalAssets
-            return assets.mulDivUp(totalShares, totalAssets);
+            return assets.mulWadUp(totalShares).divWadUp(totalAssets);
         }
         // assets * totalShares / totalAssets
-        return assets.mulDivDown(totalShares, totalAssets);
+        return assets.mulWadDown(totalShares).divWadDown(totalAssets);
     }
 
     /// @notice Convert shares to assets
-    /// @dev shares are 18 decimals, totalAssets are native decimals, returns native decimals
     function _convertToAssets(uint256 shares, uint256 totalAssets, uint256 totalShares, bool roundUp)
         internal
-        view
+        pure
         returns (uint256)
     {
         if (totalShares == 0) {
-            // Convert 18-decimal shares back to native decimals
-            return shares / borrowScalar;
+            return shares; // 1:1 initially
         }
         if (roundUp) {
             // shares * totalAssets / totalShares
-            return shares.mulDivUp(totalAssets, totalShares);
+            return shares.mulWadUp(totalAssets).divWadUp(totalShares);
         }
         // shares * totalAssets / totalShares
-        return shares.mulDivDown(totalAssets, totalShares);
+        return shares.mulWadDown(totalAssets).divWadDown(totalShares);
     }
 
     /// @notice Get user's health factor (simulated with current prices)
@@ -648,32 +624,26 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     }
 
     /// @notice Convert borrow assets to shares
-    /// @dev Scales assets to 18 decimals before dividing by borrowIndex
     function _convertToBorrowShares(uint256 assets, bool roundUp) internal view returns (uint256) {
-        // Scale assets from native decimals to 18 decimals
-        uint256 scaledAssets = assets * borrowScalar;
-
-        if (roundUp) {
-            // scaledAssets / borrowIndex (both 18 decimals)
-            return scaledAssets.divWadUp(borrowIndex);
+        if (totalBorrowShares == 0) {
+            return assets; // 1:1 initially
         }
-        // scaledAssets / borrowIndex (both 18 decimals)
-        return scaledAssets.divWadDown(borrowIndex);
+        if (roundUp) {
+            // assets / borrowIndex
+            return assets.divWadUp(borrowIndex);
+        }
+        // assets / borrowIndex
+        return assets.divWadDown(borrowIndex);
     }
 
     /// @notice Convert borrow shares to assets
-    /// @dev Returns assets in native decimals (converts from 18-decimal shares)
     function _convertToBorrowAssets(uint256 shares, bool roundUp) internal view returns (uint256) {
-        uint256 assetsIn18Decimals;
         if (roundUp) {
-            // shares * borrowIndex (both 18 decimals)
-            assetsIn18Decimals = shares.mulWadUp(borrowIndex);
-        } else {
-            // shares * borrowIndex (both 18 decimals)
-            assetsIn18Decimals = shares.mulWadDown(borrowIndex);
+            // shares * borrowIndex
+            return shares.mulWadUp(borrowIndex);
         }
-        // Convert from 18 decimals back to native decimals
-        return assetsIn18Decimals / borrowScalar;
+        // shares * borrowIndex
+        return shares.mulWadDown(borrowIndex);
     }
 
     /// @notice Get maximum borrow value for given collateral
@@ -683,19 +653,17 @@ contract LendingPool is ILendingPool, ReentrancyGuard, Ownable {
     }
 
     /// @notice Get current borrow value for given shares
-    /// @dev borrowShares are in 18 decimals, so debtAmount is also in 18 decimals
     function _getBorrowValue(uint256 borrowShares) internal view returns (uint256) {
         uint256 borrowPrice = _getPrice(address(borrowToken));
-        uint256 debtAmount = borrowShares.mulWadUp(borrowIndex); // debtAmount in 18 decimals
-        return debtAmount * borrowPrice / (10 ** 18); // Normalize scaled debt to WAD value
+        uint256 debtAmount = borrowShares.mulWadUp(borrowIndex);
+        return debtAmount * borrowPrice / (10 ** borrowDecimals);
     }
 
     /// @notice Get borrow value in common denomination (18 decimals) with simulated accrual
-    /// @dev borrowShares are in 18 decimals, so debtAmount is also in 18 decimals
     function _getBorrowValueWithAccrual(uint256 borrowShares) internal view returns (uint256) {
         uint256 borrowPrice = _getPrice(address(borrowToken));
         uint256 currentIndex = _simulateAccrual();
-        uint256 debtAmount = borrowShares.mulWadUp(currentIndex); // debtAmount in 18 decimals
-        return debtAmount * borrowPrice / (10 ** 18); // Normalize scaled debt to WAD value
+        uint256 debtAmount = borrowShares.mulWadUp(currentIndex);
+        return debtAmount * borrowPrice / (10 ** borrowDecimals);
     }
 }

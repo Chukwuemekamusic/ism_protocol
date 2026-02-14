@@ -90,8 +90,11 @@ contract LendingPoolTest is Test {
         uint256 shares = pool.deposit(depositAmount);
         vm.stopPrank();
 
-        assertEq(shares, depositAmount);
-        assertEq(pool.totalSupplyAssets(), depositAmount);
+        // Shares are scaled to 18 decimals
+        uint256 expectedShares = depositAmount * pool.borrowScalar();
+        assertEq(shares, expectedShares, "Shares should be scaled to 18 decimals");
+        assertEq(pool.totalSupplyAssets(), depositAmount, "Assets in native decimals");
+        assertEq(pool.totalSupplyShares(), expectedShares, "Total shares in 18 decimals");
         assertEq(poolToken.balanceOf(bob), shares);
     }
 
