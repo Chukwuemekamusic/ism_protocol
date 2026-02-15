@@ -58,6 +58,6 @@ export const GAS_LIMITS = {
   BORROW: 250000n,
   REPAY: 200000n,
   DEPOSIT_COLLATERAL: 150000n,  // Increased from 100000n (actual need: ~120k)
-  WITHDRAW_COLLATERAL: 150000n,  // Increased from 100000n for safety
+  WITHDRAW_COLLATERAL: 250000n,  // Increased for oracle calls in health factor calculation
   LIQUIDATE: 350000n,
 } as const;

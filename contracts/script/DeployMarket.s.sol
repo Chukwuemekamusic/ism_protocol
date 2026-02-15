@@ -90,13 +90,13 @@ contract DeployMarket is DeploymentHelper {
             console.log("Configuring USDC oracle...");
             IOracleRouter.OracleConfig memory usdcConfig = IOracleRouter.OracleConfig({
                 chainlinkFeed: Constants.USDC_USD_FEED,
-                uniswapPool: address(0), // No fallback for stablecoin
+                uniswapPool: address(0), // NO fallback for stablecoins (TWAP against WETH gives wrong price)
                 twapWindow: 0,
-                maxStaleness: 1 hours,
+                maxStaleness: 24 hours, // 24 hours for testnet
                 isToken0: false
             });
             oracleRouter.setOracleConfig(Constants.USDC_BASE_S, usdcConfig);
-            console.log("[OK] USDC oracle configured");
+            console.log("[OK] USDC oracle configured (Chainlink only)");
         } else {
             console.log("[SKIP] USDC oracle already configured");
         }
