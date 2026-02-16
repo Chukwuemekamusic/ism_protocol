@@ -76,7 +76,7 @@ contract DeployMarket is DeploymentHelper {
                 chainlinkFeed: Constants.WETH_USD_FEED,
                 uniswapPool: Constants.WETH_USDC_POOL,
                 twapWindow: 30 minutes,
-                maxStaleness: 24 hours,
+                maxStaleness: Constants.TESTNET_MAX_STALENESS, // 4 days for testnet
                 isToken0: false // WETH is token1 in WETH/USDC pool (verified on Base Sepolia)
             });
             oracleRouter.setOracleConfig(Constants.WETH_BASE_S, wethConfig);
@@ -92,7 +92,7 @@ contract DeployMarket is DeploymentHelper {
                 chainlinkFeed: Constants.USDC_USD_FEED,
                 uniswapPool: address(0), // NO fallback for stablecoins (TWAP against WETH gives wrong price)
                 twapWindow: 0,
-                maxStaleness: 24 hours, // 24 hours for testnet
+                maxStaleness: Constants.TESTNET_MAX_STALENESS, // 4 days for testnet
                 isToken0: false
             });
             oracleRouter.setOracleConfig(Constants.USDC_BASE_S, usdcConfig);

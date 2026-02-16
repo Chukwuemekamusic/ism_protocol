@@ -252,15 +252,15 @@ contract OracleRouter is IOracleRouter, Ownable {
                 quoteDecimals = decimals0;
             }
 
-            // IMPORTANT: quoteAmount = price_human * 10^baseDecimals
+            // IMPORTANT: quoteAmount = price_human * 10^quoteDecimals
             // because TickMath returns sqrt(price_human), not sqrt(price_native)
-            // To normalize to 18 decimals: price = quoteAmount * 10^(18 - baseDecimals)
-            uint8 baseDecimals = config.isToken0 ? decimals0 : decimals1;
+            // To normalize to 18 decimals: price = quoteAmount * 10^(18 - quoteDecimals)
 
-            if (baseDecimals < 18) {
-                price = quoteAmount * (10 ** (18 - baseDecimals));
-            } else if (baseDecimals > 18) {
-                price = quoteAmount / (10 ** (baseDecimals - 18));
+            if (quoteDecimals < 18) {
+                // TODO: CHANGE TO price = quoteAmount * 10^(18 - quoteDecimals)
+                price = quoteAmount * (10 ** (18 - quoteDecimals));
+            } else if (quoteDecimals > 18) {
+                price = quoteAmount / (10 ** (quoteDecimals - 18));
             } else {
                 price = quoteAmount;
             }

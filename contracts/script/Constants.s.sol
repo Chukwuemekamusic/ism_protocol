@@ -24,6 +24,7 @@ library Constants {
     // default oracle config
     uint32 internal constant STALE_DELAY = 3600; // 1 hour
     uint32 internal constant TWAP_PERIOD = 1800; // 30 minutes
+    uint96 internal constant TESTNET_MAX_STALENESS = 96 hours; // 4 days
 
     /*//////////////////////////////////////////////////////////////
                             MARKET CREATION

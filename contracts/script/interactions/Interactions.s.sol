@@ -151,6 +151,8 @@ contract checkDepositedCollateral is Script {
 
 // Borrow from a market (requires collateral to be deposited first)
 contract borrowFromMarket is Script {
+    address user = vm.envAddress("USER");
+
     function run(address market, uint256 borrowAmount) external {
         // Get the market
         ILendingPool marketContract = ILendingPool(market);
@@ -164,10 +166,10 @@ contract borrowFromMarket is Script {
         console.log("Borrow Amount:", borrowAmount);
 
         // Check user's position before borrowing
-        ILendingPool.Position memory positionBefore = marketContract.getPosition(msg.sender);
-        uint256 maxBorrow = marketContract.getMaxBorrow(msg.sender);
-        uint256 currentDebt = marketContract.getUserDebt(msg.sender);
-        uint256 healthFactorBefore = marketContract.healthFactor(msg.sender);
+        ILendingPool.Position memory positionBefore = marketContract.getPosition(user);
+        uint256 maxBorrow = marketContract.getMaxBorrow(user);
+        uint256 currentDebt = marketContract.getUserDebt(user);
+        uint256 healthFactorBefore = marketContract.healthFactor(user);
 
         console.log("\n--- Position Before Borrow ---");
         console.log("Collateral Deposited:", positionBefore.collateralAmount);
@@ -190,8 +192,8 @@ contract borrowFromMarket is Script {
         vm.stopBroadcast();
 
         // Check position after borrowing
-        uint256 newDebt = marketContract.getUserDebt(msg.sender);
-        uint256 healthFactorAfter = marketContract.healthFactor(msg.sender);
+        uint256 newDebt = marketContract.getUserDebt(user);
+        uint256 healthFactorAfter = marketContract.healthFactor(user);
 
         console.log("\n--- Position After Borrow ---");
         console.log("New Debt:", newDebt);
