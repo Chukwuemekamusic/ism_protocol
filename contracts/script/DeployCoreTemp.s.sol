@@ -17,6 +17,13 @@ import {IDutchAuctionLiquidator} from "src/interfaces/IDutchAuctionLiquidator.so
 import {IMarketRegistry} from "src/interfaces/IMarketRegistry.sol";
 import {Constants} from "./Constants.s.sol";
 
+// forge script script/DeployCoreTemp.s.sol \
+// --rpc-url $BASE_SEPOLIA_RPC_URL \
+// --account testnet \
+// --broadcast \
+// --etherscan-api-key $ETHERSCAN_API_KEY \
+// --verify \
+// --slow
 contract DeployCoreTemp is Script {
     /*//////////////////////////////////////////////////////////////
                         DATA STRUCTURES
@@ -36,7 +43,6 @@ contract DeployCoreTemp is Script {
     //////////////////////////////////////////////////////////////*/
 
     address public interestRateModel = 0x414219E850F9cD7352a56E763DddDE2900128ac4;
-    // 0x9541DC3DeD3E4733743923255735948C0b6e1d51;
 
     address public oracleRouter;
     address public dutchAuctionLiquidator;

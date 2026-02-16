@@ -30,7 +30,7 @@ contract getAllMarkets is DeploymentHelper {
 }
 
 // forge script script/interactions/Interactions.s.sol:supplySpecificMarket \
-// sig "run(address)" 0x2a5b1e18aFBB63ba63B16EdC783814bDC728255A
+// --sig "run(address)" $MARKET \
 // --rpc-url $BASE_SEPOLIA_RPC_URL \
 // --account testnet \
 // --broadcast
@@ -147,7 +147,7 @@ contract checkDepositedCollateral is Script {
 // --rpc-url $BASE_SEPOLIA_RPC_URL \
 // --account testnet \
 // --broadcast \
-// sig "run(address,uint256)" 0x2a5b1e18aFBB63ba63B16EdC783814bDC728255A 5000000
+// --sig "run(address,uint256)" $MARKET 5000000
 
 // Borrow from a market (requires collateral to be deposited first)
 contract borrowFromMarket is Script {

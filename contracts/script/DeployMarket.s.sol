@@ -76,7 +76,7 @@ contract DeployMarket is DeploymentHelper {
                 chainlinkFeed: Constants.WETH_USD_FEED,
                 uniswapPool: Constants.WETH_USDC_POOL,
                 twapWindow: 30 minutes,
-                maxStaleness: 1 hours,
+                maxStaleness: 24 hours,
                 isToken0: false // WETH is token1 in WETH/USDC pool (verified on Base Sepolia)
             });
             oracleRouter.setOracleConfig(Constants.WETH_BASE_S, wethConfig);

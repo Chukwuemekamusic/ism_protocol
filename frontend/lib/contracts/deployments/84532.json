@@ -3,20 +3,20 @@
   "contracts": {
     "chainId": 84532,
     "deployer": "0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38",
-    "deploymentTimestamp": 1771103404,
-    "dutchAuctionLiquidator": "0x6D32190048Df634cdd352C67eeC00ACEAfc4f89a",
+    "deploymentTimestamp": 1771256820,
+    "dutchAuctionLiquidator": "0x7514D0B0883cfCb2f7Cc5AeB512D9c5ab91160E2",
     "interestRateModel": "0x414219E850F9cD7352a56E763DddDE2900128ac4",
-    "lendingPoolImplementation": "0x38271C416F62F508e266b293630640eB93209398",
-    "marketFactory": "0xd91aE01373d444163819187Bb8b1E4c3099FCFd9",
-    "marketRegistry": "0x239E39c868a864c31443F6dF853A86739b90489E",
-    "oracleRouter": "0x2d3083b20FcA2341E28283aC47F9e585a5f0C741"
+    "lendingPoolImplementation": "0x72B10a8F2570776c28788652d8b575bD7236796c",
+    "marketFactory": "0x403276c627737cAb896BbdDEfEd4538d9a6aE5C0",
+    "marketRegistry": "0xB7fC139046a2d976060e2dB969b6Dd63ACeEA3f4",
+    "oracleRouter": "0xD8f530eB3B624c6D4E89d504E48F8b0d00BF0a97"
   },
   "markets": {
     "0": {
       "borrowToken": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
       "collateralToken": "0x4200000000000000000000000000000000000006",
-      "pool": "0x6deE9CA597a5061EE5D071C84Af8c70d4036c96A",
-      "poolToken": "0x59618A67F3Dd512fdFf0aA3026881e6fA8CbefA0"
+      "pool": "0x2C201C3FCdB6073d0f895D29bf8F8A93d2D67A0E",
+      "poolToken": "0x1f29083bb3C003170C6CD0eC53CB7958cBF43341"
     }
   },
   "network": "base-sepolia",

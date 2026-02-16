@@ -204,17 +204,13 @@ contract OracleRouter is IOracleRouter, Ownable {
         secondsAgos[1] = 0;
 
         try pool.observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
+            // Calculate average tick from TWAP window
+            // Note: tickCumulatives[1] is more recent (secondsAgo=0), tickCumulatives[0] is older (secondsAgo=twapWindow)
             int56 tickDelta = tickCumulatives[1] - tickCumulatives[0];
             int24 avgTick = int24(tickDelta / int56(uint56(config.twapWindow)));
 
             // Get sqrtPriceX96 from TickMath
             uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(avgTick);
-
-            // Calculate the price ratio
-            // sqrtPriceX96 = sqrt(token1/token0) * 2^96
-            // We need (sqrtPriceX96^2 / 2^192) to get token1/token0 ratio
-            // To avoid 256-bit overflow, we calculate ratio = (sqrtP^2 / 2^64)
-            uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
 
             // Calculate price based on which token we're pricing
             // sqrtPriceX96 = sqrt(token1/token0) * 2^96 (in native token units)
@@ -236,30 +232,37 @@ contract OracleRouter is IOracleRouter, Ownable {
             // Since we assume the quote token (the "other" token in the pair) is a USD stablecoin,
             // we need to adjust by the quote token's decimals to get the correct USD value.
 
-            uint256 rawPrice;
+            // Use Uniswap's standard approach (OracleLibrary.getQuoteAtTick)
+            // Calculate quote amount for 1 whole base token
+            uint256 baseAmount;
+            uint256 quoteAmount;
             uint8 quoteDecimals;
 
+            // Always use FullMath.mulDiv to compute ratioX128 to avoid overflow
+            // (ratioX192 calculation can overflow for high-price assets)
+            uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64);
+
             if (config.isToken0) {
-                // Pricing token0 in terms of token1
-                // Price = amount of token1 per 1 token0
-                rawPrice = FullMath.mulDiv(ratioX128, PRICE_PRECISION, 1 << 128);
-                quoteDecimals = decimals1; // token1 is the quote token
+                baseAmount = 10 ** uint256(decimals0);
+                quoteAmount = FullMath.mulDiv(ratioX128, baseAmount, 1 << 128);
+                quoteDecimals = decimals1;
             } else {
-                // Pricing token1 in terms of token0
-                // Price = amount of token0 per 1 token1
-                rawPrice = FullMath.mulDiv(1 << 128, PRICE_PRECISION, ratioX128);
-                quoteDecimals = decimals0; // token0 is the quote token
+                baseAmount = 10 ** uint256(decimals1);
+                quoteAmount = FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
+                quoteDecimals = decimals0;
             }
 
-            // Adjust for quote token decimals to normalize to 18-decimal USD
-            // If quote token is USDC (6 decimals), multiply by 10^12
-            // If quote token is DAI (18 decimals), multiply by 10^0 = 1
-            if (quoteDecimals < 18) {
-                price = rawPrice * (10 ** (18 - quoteDecimals));
-            } else if (quoteDecimals > 18) {
-                price = rawPrice / (10 ** (quoteDecimals - 18));
+            // IMPORTANT: quoteAmount = price_human * 10^baseDecimals
+            // because TickMath returns sqrt(price_human), not sqrt(price_native)
+            // To normalize to 18 decimals: price = quoteAmount * 10^(18 - baseDecimals)
+            uint8 baseDecimals = config.isToken0 ? decimals0 : decimals1;
+
+            if (baseDecimals < 18) {
+                price = quoteAmount * (10 ** (18 - baseDecimals));
+            } else if (baseDecimals > 18) {
+                price = quoteAmount / (10 ** (baseDecimals - 18));
             } else {
-                price = rawPrice;
+                price = quoteAmount;
             }
 
             isValid = price > 0;
