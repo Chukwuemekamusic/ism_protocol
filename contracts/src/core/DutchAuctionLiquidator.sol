@@ -303,24 +303,30 @@ contract DutchAuctionLiquidator is IDutchAuctionLiquidator, ReentrancyGuard, Own
     }
 
     /// @notice Calculate profit for liquidating at current price
+    /// @dev Returns profit in 18-decimal USD value
     function calculateProfit(uint256 auctionId, uint256 debtToRepay) external view returns (int256 profit) {
         Auction memory auction = auctions[auctionId];
         if (!auction.isActive) return 0;
 
         ILendingPool pool = ILendingPool(auction.pool);
         uint256 currentPrice = _getCurrentPrice(auction);
-        uint256 oraclePrice = oracleRouter.getPrice(address(pool.collateralToken()));
+        uint256 collateralPrice = oracleRouter.getPrice(address(pool.collateralToken()));
+        uint256 borrowPrice = oracleRouter.getPrice(address(pool.borrowToken()));
 
         uint8 collateralDecimals = pool.collateralDecimals();
+        uint8 borrowDecimals = pool.borrowDecimals();
 
         // Collateral received at current auction price
         uint256 collateralReceived = debtToRepay * (10 ** collateralDecimals) / currentPrice;
 
-        // Value of collateral at oracle price
-        uint256 collateralValue = collateralReceived * oraclePrice / (10 ** collateralDecimals);
+        // Value of collateral at oracle price (in 18 decimals)
+        uint256 collateralValue = collateralReceived * collateralPrice / (10 ** collateralDecimals);
 
-        // Profit = value received - debt paid
-        profit = int256(collateralValue) - int256(debtToRepay);
+        // Value of debt paid (in 18 decimals)
+        uint256 debtValue = debtToRepay * borrowPrice / (10 ** borrowDecimals);
+
+        // Profit = value received - debt paid (both in 18 decimals)
+        profit = int256(collateralValue) - int256(debtValue);
     }
 
     /*//////////////////////////////////////////////////////////////

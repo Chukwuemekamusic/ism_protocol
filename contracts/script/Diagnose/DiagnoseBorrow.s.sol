@@ -74,45 +74,51 @@ contract DiagnoseBorrow is Script {
         console2.log("   User Debt: ", userDebt);
         console2.log("   User Debt (USDC): ", userDebt / 1e6);
 
-        uint256 healthFactor = pool.healthFactor(USER);
-        console2.log("   Health Factor: ", healthFactor);
-        console2.log("   Health Factor (readable): ", healthFactor / 1e18);
+        // Try to get health factor with error handling
+        console2.log("   Attempting to get health factor...");
+        try pool.healthFactor(USER) returns (uint256 healthFactor) {
+            console2.log("   Health Factor: ", healthFactor);
+            console2.log("   Health Factor (readable): ", healthFactor / 1e18);
+            console2.log("   Health Factor Status: SUCCESS");
+        } catch Error(string memory reason) {
+            console2.log("   Health Factor Status: FAILED");
+            console2.log("   Error: ", reason);
+        } catch (bytes memory) {
+            console2.log("   Health Factor Status: FAILED");
+            console2.log("   Error: Low-level revert (likely oracle price deviation)");
+            console2.log("   Run DiagnoseHealthFactor.s.sol for detailed analysis");
+        }
 
         console2.log("");
 
         // 5. Check Max Borrow
         console2.log("5. BORROW LIMITS:");
         console2.log("   ---------------");
-        uint256 maxBorrow = pool.getMaxBorrow(USER);
-        console2.log("   Max Borrow: ", maxBorrow);
-        console2.log("   Max Borrow (USDC): ", maxBorrow / 1e6);
+        console2.log("   Attempting to get max borrow...");
+        try pool.getMaxBorrow(USER) returns (uint256 maxBorrow) {
+            console2.log("   Max Borrow: ", maxBorrow);
+            console2.log("   Max Borrow (USDC): ", maxBorrow / 1e6);
+            console2.log("   Max Borrow Status: SUCCESS");
+        } catch Error(string memory reason) {
+            console2.log("   Max Borrow Status: FAILED");
+            console2.log("   Error: ", reason);
+        } catch (bytes memory) {
+            console2.log("   Max Borrow Status: FAILED");
+            console2.log("   Error: Low-level revert (likely oracle price deviation)");
+        }
 
         console2.log("");
 
-        // 6. Analysis based on contract's own calculation
-        console2.log("6. ANALYSIS:");
-        console2.log("   ----------");
-        console2.log("   (Using contract's getMaxBorrow for accurate calculation)");
+        // 6. Recommendations
+        console2.log("6. RECOMMENDATIONS:");
+        console2.log("   ----------------");
+        console2.log("   If health factor failed:");
+        console2.log("   1. Run: forge script script/Diagnose/DiagnoseHealthFactor.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
+        console2.log("   2. Run: forge script script/Diagnose/DiagnoseOracleDetailed.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
+        console2.log("   3. Run: forge script script/Diagnose/HealthFactorManual.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
         console2.log("");
-
-        // 7. Test Specific Borrow Amount
-        console2.log("7. TEST BORROW 3 USDC:");
-        console2.log("   --------------------");
-        uint256 borrowAmount = 3e6; // 3 USDC
-        console2.log("   Attempting to borrow: ", borrowAmount / 1e6, " USDC");
-
-        if (borrowAmount > availableLiquidity) {
-            console2.log("   FAIL: Insufficient liquidity in pool");
-        } else {
-            console2.log("   PASS: Sufficient liquidity available");
-        }
-
-        if (borrowAmount > maxBorrow) {
-            console2.log("   FAIL: Exceeds max borrow limit");
-            console2.log("   Shortfall: ", (borrowAmount - maxBorrow) / 1e6, " USDC");
-        } else {
-            console2.log("   PASS: Within max borrow limit");
-        }
+        console2.log("   The manual script will calculate health factor using only Chainlink,");
+        console2.log("   bypassing the OracleRouter to confirm the position's actual health.");
 
         console2.log("\n=== END DIAGNOSTIC REPORT ===");
     }

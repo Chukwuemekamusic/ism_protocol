@@ -224,22 +224,42 @@ contract OracleRouter is IOracleRouter, Ownable {
             // the ratio is in terms of the smallest units of each token (native units).
             // When we square it, we get token1/token0 in native units.
             //
-            // To convert to a USD price with 18 decimals, we need to:
-            // 1. Get the ratio in real terms: ratio_real = ratio_native * 10^(decimals0 - decimals1)
-            // 2. Normalize to 18 decimals: price = ratio_real * 10^18
+            // To convert to a USD price with 18 decimals, we need to account for:
+            // 1. The decimal difference between the tokens
+            // 2. Normalize the final result to 18 decimals
             //
-            // Combined: price = ratio_native * 10^(18 + decimals0 - decimals1)
+            // For token0: price = (token1/token0) * 10^18 * 10^(decimals1 - decimals0) / 10^decimals1
+            //           = (token1/token0) * 10^(18 - decimals0)
+            // For token1: price = (token0/token1) * 10^18 * 10^(decimals0 - decimals1) / 10^decimals0
+            //           = (token0/token1) * 10^(18 - decimals1)
             //
-            // HOWEVER, empirically we found that just using 10^18 works correctly.
-            // This suggests that the sqrtPriceX96 from Uniswap V3 is already adjusted
-            // for token decimals, OR the TickMath library handles this internally.
+            // Since we assume the quote token (the "other" token in the pair) is a USD stablecoin,
+            // we need to adjust by the quote token's decimals to get the correct USD value.
+
+            uint256 rawPrice;
+            uint8 quoteDecimals;
 
             if (config.isToken0) {
-                // Price of token0 in terms of token1 (e.g., USDC per WETH if token0=WETH, token1=USDC)
-                price = FullMath.mulDiv(ratioX128, PRICE_PRECISION, 1 << 128);
+                // Pricing token0 in terms of token1
+                // Price = amount of token1 per 1 token0
+                rawPrice = FullMath.mulDiv(ratioX128, PRICE_PRECISION, 1 << 128);
+                quoteDecimals = decimals1; // token1 is the quote token
             } else {
-                // Price of token1 in terms of token0 (e.g., USDC per WETH if token0=USDC, token1=WETH)
-                price = FullMath.mulDiv(1 << 128, PRICE_PRECISION, ratioX128);
+                // Pricing token1 in terms of token0
+                // Price = amount of token0 per 1 token1
+                rawPrice = FullMath.mulDiv(1 << 128, PRICE_PRECISION, ratioX128);
+                quoteDecimals = decimals0; // token0 is the quote token
+            }
+
+            // Adjust for quote token decimals to normalize to 18-decimal USD
+            // If quote token is USDC (6 decimals), multiply by 10^12
+            // If quote token is DAI (18 decimals), multiply by 10^0 = 1
+            if (quoteDecimals < 18) {
+                price = rawPrice * (10 ** (18 - quoteDecimals));
+            } else if (quoteDecimals > 18) {
+                price = rawPrice / (10 ** (quoteDecimals - 18));
+            } else {
+                price = rawPrice;
             }
 
             isValid = price > 0;
