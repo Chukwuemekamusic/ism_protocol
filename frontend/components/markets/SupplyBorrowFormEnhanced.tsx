@@ -243,16 +243,33 @@ export default function SupplyBorrowFormEnhanced({
 
       case 'repay': {
         const amountBigInt = parseTokenInput(amount, market.borrowDecimals);
+
+        // Check if user is repaying all debt (amount equals or exceeds total debt)
+        const isRepayingAll = amountBigInt >= userPosition.borrowed;
+
+        // When repaying all, add 1% buffer to account for accrued interest between approval and repay
+        // This ensures we have enough approval even if interest accrues
+        const amountToApprove = isRepayingAll
+          ? (userPosition.borrowed * 101n) / 100n  // 1% buffer for accrued interest
+          : amountBigInt;
+
         if (borrowTokenBalance && borrowTokenBalance.value < amountBigInt) {
           alert(
             `Insufficient balance. You have ${formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals)} ${borrowSymbol}`
           );
           return;
         }
-        if (borrowAllowance < amountBigInt) {
-          borrowApprove.approve(amount, market.borrowDecimals);
+
+        // Check allowance - when repaying all, we need extra buffer for accrued interest
+        if (borrowAllowance < amountToApprove) {
+          // Approve with buffer when repaying all
+          const approvalAmount = isRepayingAll
+            ? formatUnits(amountToApprove, market.borrowDecimals)
+            : amount;
+          borrowApprove.approve(approvalAmount, market.borrowDecimals);
         } else {
-          repayHook.repay(amount, market.borrowDecimals);
+          // Pass repayAll flag to trigger max uint256 for full repayment
+          repayHook.repay(amount, market.borrowDecimals, isRepayingAll);
         }
         break;
       }

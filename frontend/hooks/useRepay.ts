@@ -15,8 +15,11 @@ export function useRepay(marketAddress: `0x${string}`) {
     hash,
   });
 
-  const repay = (amount: string, decimals: number) => {
-    const amountInWei = parseUnits(amount, decimals);
+  const repay = (amount: string, decimals: number, repayAll: boolean = false) => {
+    // If repaying all debt, use max uint256 to trigger full repayment
+    const amountInWei = repayAll
+      ? BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff') // type(uint256).max
+      : parseUnits(amount, decimals);
 
     writeContract({
       address: marketAddress,
