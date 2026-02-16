@@ -3,9 +3,13 @@
 import { useParams } from 'next/navigation';
 import { useMarketData, useMarketTokenSymbols } from '@/hooks/useMarketData';
 import { useUserMarketPosition } from '@/hooks/useUserPosition';
+import { useTokenPrices } from '@/hooks/useTokenPrices';
 import { useAccount } from 'wagmi';
 import { formatTokenAmount, formatAPY, formatPercent } from '@/lib/utils/formatters';
-import SupplyBorrowForm from '@/components/markets/SupplyBorrowForm';
+import {
+  SupplyBorrowFormEnhanced,
+  PositionOverview,
+} from '@/components/markets';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,14 +33,22 @@ export default function MarketDetailPage() {
     isLoading: positionLoading,
   } = useUserMarketPosition(marketAddress);
 
+  // Fetch token prices from oracle
+  const { collateralPrice, borrowPrice, isLoading: pricesLoading } = useTokenPrices(
+    market?.collateralToken || '0x0',
+    market?.borrowToken || '0x0'
+  );
+
   if (marketLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="h-96 bg-gray-200 rounded"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-96 bg-gray-200 rounded"></div>
+            </div>
             <div className="h-96 bg-gray-200 rounded"></div>
           </div>
         </div>
@@ -58,6 +70,16 @@ export default function MarketDetailPage() {
     );
   }
 
+  const userPosition = {
+    supplied,
+    collateral,
+    borrowed,
+    healthFactor,
+    maxBorrow,
+  };
+
+  const hasPosition = supplied > 0n || collateral > 0n || borrowed > 0n;
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
@@ -77,47 +99,25 @@ export default function MarketDetailPage() {
         <p className="text-sm text-gray-500 font-mono">{marketAddress}</p>
       </div>
 
-      {/* User Position Banner (if connected) */}
-      {address && (supplied > 0n || collateral > 0n || borrowed > 0n) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
-          <h3 className="font-semibold mb-4">Your Position</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Supplied</p>
-              <p className="text-lg font-semibold">
-                {formatTokenAmount(supplied, market.borrowDecimals, 4)} {borrowSymbol}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Collateral</p>
-              <p className="text-lg font-semibold">
-                {formatTokenAmount(collateral, market.collateralDecimals, 4)} {collateralSymbol}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Borrowed</p>
-              <p className="text-lg font-semibold">
-                {formatTokenAmount(borrowed, market.borrowDecimals, 4)} {borrowSymbol}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Health Factor</p>
-              <p className={`text-lg font-semibold ${
-                healthFactor >= 1.5 ? 'text-green-600' :
-                healthFactor >= 1.2 ? 'text-yellow-600' :
-                healthFactor >= 1.0 ? 'text-orange-600' : 'text-red-600'
-              }`}>
-                {healthFactor === Infinity ? '∞' : healthFactor.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Market Information */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left: Market Information & Position Overview */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Position Overview (if user has a position) */}
+          {address && hasPosition && !pricesLoading && collateralPrice > 0n && borrowPrice > 0n && (
+            <PositionOverview
+              userPosition={userPosition}
+              marketData={{
+                collateralPrice,
+                borrowPrice,
+                collateralDecimals: market.collateralDecimals,
+                borrowDecimals: market.borrowDecimals,
+              }}
+              collateralSymbol={collateralSymbol}
+              borrowSymbol={borrowSymbol}
+            />
+          )}
+
           {/* APY Card */}
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <h2 className="text-xl font-semibold mb-4">Interest Rates</h2>
@@ -202,21 +202,27 @@ export default function MarketDetailPage() {
           </div>
         </div>
 
-        {/* Right: Supply/Borrow Form */}
-        <div>
-          <SupplyBorrowForm
-            marketAddress={marketAddress}
-            market={market}
-            collateralSymbol={collateralSymbol}
-            borrowSymbol={borrowSymbol}
-            userPosition={{
-              supplied,
-              collateral,
-              borrowed,
-              healthFactor,
-              maxBorrow,
-            }}
-          />
+        {/* Right: Enhanced Supply/Borrow Form */}
+        <div className="lg:col-span-1">
+          {!pricesLoading && collateralPrice > 0n && borrowPrice > 0n ? (
+            <SupplyBorrowFormEnhanced
+              marketAddress={marketAddress}
+              market={market}
+              collateralSymbol={collateralSymbol}
+              borrowSymbol={borrowSymbol}
+              userPosition={userPosition}
+              collateralPrice={collateralPrice}
+              borrowPrice={borrowPrice}
+            />
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+              </div>
+              <p className="text-sm text-gray-500 mt-4">Loading prices...</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

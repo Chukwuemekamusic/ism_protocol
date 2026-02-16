@@ -6,7 +6,32 @@
  */
 
 // Import deployment JSONs (these will be loaded at build time)
-import baseSepolia from './deployments/84532.json';
+import baseSepoliaRaw from "./deployments/84532.json";
+
+// Helper function to transform raw deployment data
+function transformDeployment(raw: any): Deployment {
+  // Transform markets object to array
+  const marketsArray: Market[] = Object.values(raw.markets || {}).map(
+    (market: any) => ({
+      address: market.pool,
+      collateralToken: market.collateralToken,
+      borrowToken: market.borrowToken,
+      collateralSymbol: market.collateralSymbol,
+      borrowSymbol: market.borrowSymbol,
+    }),
+  );
+
+  return {
+    chainId: raw.chainId,
+    network: raw.network,
+    contracts: raw.contracts,
+    markets: marketsArray,
+    tokens: raw.tokens || {},
+    oracles: raw.oracles || {},
+  };
+}
+
+const baseSepolia = transformDeployment(baseSepoliaRaw);
 
 // TypeScript interfaces
 export interface DeploymentContracts {
@@ -44,13 +69,14 @@ export const SUPPORTED_CHAINS = {
   BASE_MAINNET: 8453,
 } as const;
 
-export type SupportedChainId = typeof SUPPORTED_CHAINS[keyof typeof SUPPORTED_CHAINS];
+export type SupportedChainId =
+  (typeof SUPPORTED_CHAINS)[keyof typeof SUPPORTED_CHAINS];
 
 // Deployment data by chain ID
 const DEPLOYMENTS: Record<number, Deployment> = {
-  [SUPPORTED_CHAINS.BASE_SEPOLIA]: baseSepolia as Deployment,
+  [SUPPORTED_CHAINS.BASE_SEPOLIA]: baseSepolia,
   // Add Base Mainnet when deployed
-  // [SUPPORTED_CHAINS.BASE_MAINNET]: baseMainnet as Deployment,
+  // [SUPPORTED_CHAINS.BASE_MAINNET]: baseMainnet,
 };
 
 /**
@@ -69,13 +95,15 @@ export function getDeployment(chainId: number): Deployment {
  */
 export function getContractAddress(
   chainId: number,
-  contractName: keyof DeploymentContracts
+  contractName: keyof DeploymentContracts,
 ): `0x${string}` {
   const deployment = getDeployment(chainId);
   const address = deployment.contracts[contractName];
 
-  if (!address || typeof address !== 'string') {
-    throw new Error(`Contract ${contractName} not found in deployment for chain ${chainId}`);
+  if (!address || typeof address !== "string") {
+    throw new Error(
+      `Contract ${contractName} not found in deployment for chain ${chainId}`,
+    );
   }
 
   return address as `0x${string}`;
@@ -92,12 +120,17 @@ export function getMarkets(chainId: number): Market[] {
 /**
  * Get token address for a chain
  */
-export function getTokenAddress(chainId: number, symbol: string): `0x${string}` {
+export function getTokenAddress(
+  chainId: number,
+  symbol: string,
+): `0x${string}` {
   const deployment = getDeployment(chainId);
   const address = deployment.tokens[symbol];
 
   if (!address) {
-    throw new Error(`Token ${symbol} not found in deployment for chain ${chainId}`);
+    throw new Error(
+      `Token ${symbol} not found in deployment for chain ${chainId}`,
+    );
   }
 
   return address as `0x${string}`;
