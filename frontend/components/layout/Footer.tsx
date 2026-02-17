@@ -7,8 +7,8 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold mb-3">ISM Protocol</h3>
             <p className="text-sm text-gray-600">
-              Isolated lending markets on Base. Supply assets to earn interest or borrow against
-              collateral.
+              Isolated lending markets on Base. Supply assets to earn interest
+              or borrow against collateral.
             </p>
           </div>
 
@@ -22,7 +22,10 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/dashboard" className="hover:text-gray-900 transition-colors">
+                <a
+                  href="/dashboard"
+                  className="hover:text-gray-900 transition-colors"
+                >
                   Dashboard
                 </a>
               </li>
@@ -57,7 +60,7 @@ export default function Footer() {
           </div>
 
           {/* Community */}
-          <div>
+          {/* <div>
             <h3 className="font-semibold mb-3">Community</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
@@ -76,7 +79,7 @@ export default function Footer() {
                 </a>
               </li>
             </ul>
-          </div>
+          </div> */}
         </div>
 
         <div className="mt-8 pt-6 border-t text-center text-sm text-gray-600">

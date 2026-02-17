@@ -113,8 +113,12 @@ contract DiagnoseBorrow is Script {
         console2.log("6. RECOMMENDATIONS:");
         console2.log("   ----------------");
         console2.log("   If health factor failed:");
-        console2.log("   1. Run: forge script script/Diagnose/DiagnoseHealthFactor.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
-        console2.log("   2. Run: forge script script/Diagnose/DiagnoseOracleDetailed.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
+        console2.log(
+            "   1. Run: forge script script/Diagnose/DiagnoseHealthFactor.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL"
+        );
+        console2.log(
+            "   2. Run: forge script script/Diagnose/DiagnoseOracleDetailed.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL"
+        );
         console2.log("   3. Run: forge script script/Diagnose/HealthFactorManual.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL");
         console2.log("");
         console2.log("   The manual script will calculate health factor using only Chainlink,");

@@ -163,7 +163,13 @@ export default function HealthFactorDisplay({
 /**
  * Compact health factor badge (for use in tables/cards)
  */
-export function HealthFactorBadge({ healthFactor }: { healthFactor: number }) {
+export function HealthFactorBadge({
+  healthFactor,
+  size = 'md',
+}: {
+  healthFactor: number;
+  size?: 'sm' | 'md' | 'lg';
+}) {
   const status = getHealthStatus(healthFactor);
 
   const colorClasses = {
@@ -180,13 +186,19 @@ export function HealthFactorBadge({ healthFactor }: { healthFactor: number }) {
     liquidatable: '🔴',
   };
 
+  const sizeClasses = {
+    sm: 'px-1.5 py-0.5 text-xs gap-1',
+    md: 'px-2 py-1 text-xs gap-1',
+    lg: 'px-3 py-1.5 text-sm gap-1.5',
+  };
+
   const displayValue = healthFactor === Infinity ? '∞' : healthFactor.toFixed(2);
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${
+      className={`inline-flex items-center rounded font-medium border ${
         colorClasses[status.color as keyof typeof colorClasses]
-      }`}
+      } ${sizeClasses[size]}`}
     >
       <span>{emoji[status.status]}</span>
       <span>HF: {displayValue}</span>

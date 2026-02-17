@@ -66,12 +66,14 @@ export class AuctionStore {
 
   /**
    * Remove all expired auctions from the store.
+   * Marks them as inactive rather than deleting immediately.
    */
   removeExpired(currentTimestamp: number): Auction[] {
     const expired: Auction[] = [];
     for (const [auctionKey, auction] of this.auctions.entries()) {
       if (auction.endTime < currentTimestamp && auction.isActive) {
-        this.auctions.delete(auctionKey);
+        // Mark as inactive instead of deleting
+        auction.isActive = false;
         expired.push(auction);
 
         // Remove from the user index

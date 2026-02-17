@@ -15,14 +15,7 @@ contract OracleSpotPriceForkTest is Test {
         IUniswapV3Pool pool = IUniswapV3Pool(UNISWAP_POOL);
 
         // Get current slot0
-        (
-            uint160 sqrtPriceX96,
-            int24 tick,
-            uint16 observationIndex,
-            uint16 observationCardinality,
-            ,
-            ,
-        ) = pool.slot0();
+        (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality,,,) = pool.slot0();
 
         console2.log("=== Spot Price ===");
         console2.log("Current tick:", uint256(uint24(tick)));

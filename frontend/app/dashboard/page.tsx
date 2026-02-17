@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useAccount } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useUserPositions } from '@/hooks/useUserPosition';
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useUserPositions } from "@/hooks/useUserPosition";
 import {
   PortfolioOverview,
   PortfolioPositions,
   PortfolioRiskCard,
-} from '@/components/dashboard';
+} from "@/components/dashboard";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
@@ -36,7 +36,8 @@ export default function DashboardPage() {
             </div>
             <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
             <p className="text-gray-600 mb-8">
-              Connect your wallet to view your portfolio, positions, and manage your assets across all markets.
+              Connect your wallet to view your portfolio, positions, and manage
+              your assets across all markets.
             </p>
             <ConnectButton />
           </div>
@@ -55,7 +56,10 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 animate-pulse">
+            <div
+              key={i}
+              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 animate-pulse"
+            >
               <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
               <div className="h-8 bg-gray-200 rounded w-3/4"></div>
             </div>
@@ -93,7 +97,8 @@ export default function DashboardPage() {
             </div>
             <h2 className="text-2xl font-bold mb-4">No Positions Yet</h2>
             <p className="text-gray-600 mb-8">
-              You don't have any active positions. Start by supplying assets or borrowing from our markets.
+              You don't have any active positions. Start by supplying assets or
+              borrowing from our markets.
             </p>
             <a
               href="/"
