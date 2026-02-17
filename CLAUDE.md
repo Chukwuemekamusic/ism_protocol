@@ -243,6 +243,7 @@ cat deployments/84532.json
 - **Role**: Dual-source price feed with safety checks
 - **Primary**: Chainlink Aggregator V3
 - **Fallback**: Uniswap V3 TWAP (30-min window)
+  - **Note**: TWAP fallback is currently **disabled** in testnet deployment (will be fixed in future update)
 - **Safety Features**:
   - Deviation checks (max 5% between sources)
   - Staleness checks (Chainlink: 1 hour, TWAP: current)

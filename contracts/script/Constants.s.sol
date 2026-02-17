@@ -35,13 +35,19 @@ library Constants {
     address internal constant BTC_USD_FEED = 0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298;
     address internal constant USDC_USD_FEED = 0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165;
     address internal constant WETH_USD_FEED = 0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1;
+    address internal constant WBTC_USD_FEED = 0x7e860098F58bBFC8648a4311b374B1D669a2bc6B;
 
     // market tokens (Base Sepolia)
     address internal constant WETH_BASE_S = 0x4200000000000000000000000000000000000006;
     address internal constant USDC_BASE_S = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
+    address internal constant WBTC_BASE_S = 0x0E0ee9dFdb60a87D946FcB198E324454dfC425A9;
+    // Note: Add more token addresses here as needed for new markets
+    // Example: address internal constant WBTC_BASE_S = 0x...;
 
-    // Uniswap V3 pools (Base Sepolia) -
+    // Uniswap V3 pools (Base Sepolia)
     address internal constant WETH_USDC_POOL = 0x94bfc0574FF48E92cE43d495376C477B1d0EEeC0;
+    // Note: Add more pool addresses here for TWAP oracle fallback
+    // Example: address internal constant WBTC_USDC_POOL = 0x...;
 
     // Market parameters (from protocol design)
     uint64 internal constant LTV = 0.75e18; // 75%

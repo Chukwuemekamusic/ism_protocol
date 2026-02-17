@@ -1,10 +1,13 @@
 'use client';
 
 import { useMarkets } from '@/hooks/useMarkets';
+import { useProtocolStats } from '@/hooks/useProtocolStats';
+import { formatUSD } from '@/lib/utils/formatters';
 import MarketCard from '@/components/markets/MarketCard';
 
 export default function HomePage() {
   const { markets, isLoading } = useMarkets();
+  const { totalValueLockedUSD, totalActiveBorrowsUSD, isLoading: statsLoading } = useProtocolStats();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -20,9 +23,20 @@ export default function HomePage() {
 
       {/* Protocol Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <StatCard title="Total Value Locked" value="$0.00" trend="+0%" />
-        <StatCard title="Total Markets" value={markets?.length.toString() || '0'} />
-        <StatCard title="Active Borrows" value="$0.00" trend="+0%" />
+        <StatCard
+          title="Total Value Locked"
+          value={statsLoading ? 'Loading...' : formatUSD(totalValueLockedUSD)}
+          isLoading={statsLoading}
+        />
+        <StatCard
+          title="Total Markets"
+          value={markets?.length.toString() || '0'}
+        />
+        <StatCard
+          title="Active Borrows"
+          value={statsLoading ? 'Loading...' : formatUSD(totalActiveBorrowsUSD)}
+          isLoading={statsLoading}
+        />
       </div>
 
       {/* Markets List */}
@@ -105,13 +119,27 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ title, value, trend }: { title: string; value: string; trend?: string }) {
+function StatCard({
+  title,
+  value,
+  trend,
+  isLoading,
+}: {
+  title: string;
+  value: string;
+  trend?: string;
+  isLoading?: boolean;
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
       <p className="text-sm text-gray-600 mb-2">{title}</p>
       <div className="flex items-end justify-between">
-        <p className="text-3xl font-bold">{value}</p>
-        {trend && (
+        {isLoading ? (
+          <div className="h-9 bg-gray-200 rounded animate-pulse w-32"></div>
+        ) : (
+          <p className="text-3xl font-bold">{value}</p>
+        )}
+        {trend && !isLoading && (
           <span className="text-sm font-medium text-green-600">{trend}</span>
         )}
       </div>

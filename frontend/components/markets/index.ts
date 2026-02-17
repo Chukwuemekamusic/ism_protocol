@@ -10,3 +10,4 @@ export { default as PositionOverview } from './PositionOverview';
 export { default as SupplyBorrowFormEnhanced } from './SupplyBorrowFormEnhanced';
 export { default as SupplyBorrowForm } from './SupplyBorrowForm';
 export { default as MarketCard } from './MarketCard';
+export { InterestRatesCard } from './InterestRatesCard';

@@ -123,9 +123,11 @@ export default function TransactionPreview({
   const newHF = calculateNewHealthFactor();
 
   // Determine if action is safe
+  // Only show warnings for actions that WORSEN health factor
+  const isRiskyAction = mode === 'borrow' || mode === 'withdrawCollateral' || mode === 'withdraw';
   const isSafe = newHF >= 1.0;
-  const isRisky = newHF < 1.5 && newHF >= 1.0;
-  const isCritical = newHF < 1.0;
+  const isRisky = isRiskyAction && newHF < 1.5 && newHF >= 1.0;
+  const isCritical = isRiskyAction && newHF < 1.0;
 
   // Format values for display
   const formatValue = (value: bigint, decimals: number, symbol: string) => {
@@ -267,8 +269,11 @@ export default function TransactionPreview({
             <div>
               <div className="font-semibold mb-1">Critical Risk - Transaction Blocked!</div>
               <div>
-                This action would make your position <strong>liquidatable</strong> (Health Factor
-                &lt; 1.0). Your collateral would be at immediate risk of seizure.
+                This {mode} would make your position <strong>liquidatable</strong> (Health Factor
+                &lt; 1.0).
+                {mode === 'borrow' && ' Reduce the borrow amount or add more collateral first.'}
+                {mode === 'withdrawCollateral' && ' You cannot withdraw this much collateral with your current debt.'}
+                {mode === 'withdraw' && ' Withdraw less or repay some debt first.'}
               </div>
             </div>
           </div>
@@ -280,10 +285,18 @@ export default function TransactionPreview({
             <div>
               <div className="font-semibold mb-1">High Risk Warning</div>
               <div>
-                This action will reduce your health factor to <strong>{newHF.toFixed(2)}</strong>,
-                putting your position at higher risk of liquidation. Consider maintaining a health
-                factor above 1.5 for safety.
+                This {mode} will reduce your health factor to <strong>{newHF.toFixed(2)}</strong>.
+                Your position will be at higher risk of liquidation. Consider maintaining HF above 1.5 for safety.
               </div>
+            </div>
+          </div>
+        </div>
+      ) : newHF !== Infinity && newHF < currentHF ? (
+        <div className="p-3 bg-blue-50 border border-blue-300 rounded-lg text-sm text-blue-800">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">ℹ️</span>
+            <div>
+              Your health factor will decrease to <strong>{newHF.toFixed(2)}</strong>, but remains safe.
             </div>
           </div>
         </div>
@@ -292,6 +305,7 @@ export default function TransactionPreview({
           <div className="flex items-center gap-2">
             <span className="text-lg">✓</span>
             <strong>Safe to proceed</strong>
+            {newHF > currentHF && currentHF !== Infinity && ' - This action improves your health factor'}
           </div>
         </div>
       )}

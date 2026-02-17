@@ -9,7 +9,9 @@ import { formatTokenAmount, formatAPY, formatPercent } from '@/lib/utils/formatt
 import {
   SupplyBorrowFormEnhanced,
   PositionOverview,
+  InterestRatesCard,
 } from '@/components/markets';
+import { AddressDisplay } from '@/components/ui/AddressDisplay';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -96,7 +98,7 @@ export default function MarketDetailPage() {
           <span>{borrowSymbol}</span>
           <span className="text-xl font-normal text-gray-500">Market</span>
         </h1>
-        <p className="text-sm text-gray-500 font-mono">{marketAddress}</p>
+        <AddressDisplay address={marketAddress} className="text-gray-500" />
       </div>
 
       {/* Main Content */}
@@ -118,20 +120,13 @@ export default function MarketDetailPage() {
             />
           )}
 
-          {/* APY Card */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4">Interest Rates</h2>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Supply APY</p>
-                <p className="text-3xl font-bold text-green-600">{formatAPY(market.supplyAPY)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Borrow APY</p>
-                <p className="text-3xl font-bold text-blue-600">{formatAPY(market.borrowAPY)}</p>
-              </div>
-            </div>
-          </div>
+          {/* Interest Rates Card */}
+          <InterestRatesCard
+            supplyAPY={market.supplyAPY}
+            borrowAPY={market.borrowAPY}
+            utilization={market.utilization}
+            borrowSymbol={borrowSymbol}
+          />
 
           {/* Market Stats */}
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -189,14 +184,14 @@ export default function MarketDetailPage() {
             <h2 className="text-xl font-semibold mb-4">Token Information</h2>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Collateral Token</p>
-                <p className="font-mono text-sm">{market.collateralToken}</p>
-                <p className="text-sm font-semibold">{collateralSymbol} ({market.collateralDecimals} decimals)</p>
+                <p className="text-sm text-gray-600 mb-2">Collateral Token</p>
+                <AddressDisplay address={market.collateralToken} className="mb-2" />
+                <p className="text-sm font-semibold text-gray-700">{collateralSymbol} ({market.collateralDecimals} decimals)</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Borrow Token</p>
-                <p className="font-mono text-sm">{market.borrowToken}</p>
-                <p className="text-sm font-semibold">{borrowSymbol} ({market.borrowDecimals} decimals)</p>
+              <div className="pt-2 border-t border-gray-100">
+                <p className="text-sm text-gray-600 mb-2">Borrow Token</p>
+                <AddressDisplay address={market.borrowToken} className="mb-2" />
+                <p className="text-sm font-semibold text-gray-700">{borrowSymbol} ({market.borrowDecimals} decimals)</p>
               </div>
             </div>
           </div>

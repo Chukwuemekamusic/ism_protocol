@@ -1,21 +1,35 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAccount, useBalance, useReadContract } from 'wagmi';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useDeposit, useApprove, useAllowance } from '@/hooks/useDeposit';
-import { useBorrow, useDepositCollateral, useWithdrawCollateral } from '@/hooks/useBorrow';
-import { useRepay } from '@/hooks/useRepay';
-import { useWithdraw } from '@/hooks/useWithdraw';
-import { formatTokenAmount, parseTokenInput } from '@/lib/utils/formatters';
-import { MarketData } from '@/hooks/useMarketData';
-import { formatUnits } from 'viem';
-import { parseContractError, getErrorTitle, isCriticalError } from '@/lib/utils/errorMessages';
-import TransactionPreview from './TransactionPreview';
-import HealthFactorDisplay from './HealthFactorDisplay';
-import { LENDING_POOL_ABI } from '@/lib/contracts/abis';
+import { useState, useEffect } from "react";
+import { useAccount, useBalance, useReadContract } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useDeposit, useApprove, useAllowance } from "@/hooks/useDeposit";
+import {
+  useBorrow,
+  useDepositCollateral,
+  useWithdrawCollateral,
+} from "@/hooks/useBorrow";
+import { useRepay } from "@/hooks/useRepay";
+import { useWithdraw } from "@/hooks/useWithdraw";
+import { formatTokenAmount, parseTokenInput } from "@/lib/utils/formatters";
+import { MarketData } from "@/hooks/useMarketData";
+import { formatUnits } from "viem";
+import {
+  parseContractError,
+  getErrorTitle,
+  isCriticalError,
+} from "@/lib/utils/errorMessages";
+import TransactionPreview from "./TransactionPreview";
+import HealthFactorDisplay from "./HealthFactorDisplay";
+import { LENDING_POOL_ABI } from "@/lib/contracts/abis";
 
-type Tab = 'supply' | 'withdraw' | 'depositCollateral' | 'withdrawCollateral' | 'borrow' | 'repay';
+type Tab =
+  | "supply"
+  | "withdraw"
+  | "depositCollateral"
+  | "withdrawCollateral"
+  | "borrow"
+  | "repay";
 
 interface SupplyBorrowFormEnhancedProps {
   marketAddress: `0x${string}`;
@@ -42,8 +56,8 @@ export default function SupplyBorrowFormEnhanced({
   collateralPrice,
   borrowPrice,
 }: SupplyBorrowFormEnhancedProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('supply');
-  const [amount, setAmount] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>("supply");
+  const [amount, setAmount] = useState("");
   const { address, isConnected } = useAccount();
 
   // Get user's token balances
@@ -61,27 +75,25 @@ export default function SupplyBorrowFormEnhanced({
   const { data: availableLiquidity } = useReadContract({
     address: marketAddress,
     abi: LENDING_POOL_ABI,
-    functionName: 'totalSupplyAssets',
+    functionName: "totalSupplyAssets",
     query: {
       select: (totalSupply) => {
         // Available = totalSupply - totalBorrow
-        return totalSupply > market.totalBorrow ? totalSupply - market.totalBorrow : 0n;
+        return totalSupply > market.totalBorrow
+          ? totalSupply - market.totalBorrow
+          : 0n;
       },
     },
   });
 
   // Check allowances
-  const { allowance: borrowAllowance, refetch: refetchBorrowAllowance } = useAllowance(
-    market.borrowToken,
-    address,
-    marketAddress
-  );
+  const { allowance: borrowAllowance, refetch: refetchBorrowAllowance } =
+    useAllowance(market.borrowToken, address, marketAddress);
 
-  const { allowance: collateralAllowance, refetch: refetchCollateralAllowance } = useAllowance(
-    market.collateralToken,
-    address,
-    marketAddress
-  );
+  const {
+    allowance: collateralAllowance,
+    refetch: refetchCollateralAllowance,
+  } = useAllowance(market.collateralToken, address, marketAddress);
 
   // Transaction hooks
   const depositHook = useDeposit(marketAddress, market.borrowToken);
@@ -104,7 +116,7 @@ export default function SupplyBorrowFormEnhanced({
       depositCollateralHook.isSuccess ||
       withdrawCollateralHook.isSuccess
     ) {
-      setAmount('');
+      setAmount("");
       refetchBorrowAllowance();
       refetchCollateralAllowance();
     }
@@ -131,14 +143,16 @@ export default function SupplyBorrowFormEnhanced({
   // Improved MAX button logic
   const handleMaxClick = () => {
     switch (activeTab) {
-      case 'supply':
+      case "supply":
         // Use wallet balance
         if (borrowTokenBalance) {
-          setAmount(formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals));
+          setAmount(
+            formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals),
+          );
         }
         break;
 
-      case 'withdraw':
+      case "withdraw":
         // Use minimum of deposited amount and available liquidity
         if (availableLiquidity !== undefined) {
           const maxWithdraw =
@@ -152,21 +166,28 @@ export default function SupplyBorrowFormEnhanced({
         }
         break;
 
-      case 'depositCollateral':
+      case "depositCollateral":
         // Use wallet balance
         if (collateralTokenBalance) {
-          setAmount(formatUnits(collateralTokenBalance.value, collateralTokenBalance.decimals));
+          setAmount(
+            formatUnits(
+              collateralTokenBalance.value,
+              collateralTokenBalance.decimals,
+            ),
+          );
         }
         break;
 
-      case 'withdrawCollateral':
+      case "withdrawCollateral":
         // If has borrows, need to be careful
         // For now use total collateral (contract will reject if unhealthy)
         // TODO: Add getMaxWithdrawCollateral when contract function is available
-        setAmount(formatUnits(userPosition.collateral, market.collateralDecimals));
+        setAmount(
+          formatUnits(userPosition.collateral, market.collateralDecimals),
+        );
         break;
 
-      case 'borrow':
+      case "borrow":
         // Use contract's maxBorrow, but also check available liquidity
         if (availableLiquidity !== undefined) {
           const maxBorrow =
@@ -179,7 +200,7 @@ export default function SupplyBorrowFormEnhanced({
         }
         break;
 
-      case 'repay':
+      case "repay":
         // Use minimum of debt and wallet balance
         if (borrowTokenBalance) {
           const maxRepay =
@@ -197,11 +218,11 @@ export default function SupplyBorrowFormEnhanced({
     if (!amount || parseFloat(amount) <= 0) return;
 
     switch (activeTab) {
-      case 'supply': {
+      case "supply": {
         const amountBigInt = parseTokenInput(amount, market.borrowDecimals);
         if (borrowTokenBalance && borrowTokenBalance.value < amountBigInt) {
           alert(
-            `Insufficient balance. You have ${formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals)} ${borrowSymbol}`
+            `Insufficient balance. You have ${formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals)} ${borrowSymbol}`,
           );
           return;
         }
@@ -213,35 +234,44 @@ export default function SupplyBorrowFormEnhanced({
         break;
       }
 
-      case 'withdraw':
+      case "withdraw":
         withdrawHook.withdraw(amount, market.borrowDecimals);
         break;
 
-      case 'depositCollateral': {
+      case "depositCollateral": {
         const amountBigInt = parseTokenInput(amount, market.collateralDecimals);
-        if (collateralTokenBalance && collateralTokenBalance.value < amountBigInt) {
+        if (
+          collateralTokenBalance &&
+          collateralTokenBalance.value < amountBigInt
+        ) {
           alert(
-            `Insufficient balance. You have ${formatUnits(collateralTokenBalance.value, collateralTokenBalance.decimals)} ${collateralSymbol}`
+            `Insufficient balance. You have ${formatUnits(collateralTokenBalance.value, collateralTokenBalance.decimals)} ${collateralSymbol}`,
           );
           return;
         }
         if (collateralAllowance < amountBigInt) {
           collateralApprove.approve(amount, market.collateralDecimals);
         } else {
-          depositCollateralHook.depositCollateral(amount, market.collateralDecimals);
+          depositCollateralHook.depositCollateral(
+            amount,
+            market.collateralDecimals,
+          );
         }
         break;
       }
 
-      case 'withdrawCollateral':
-        withdrawCollateralHook.withdrawCollateral(amount, market.collateralDecimals);
+      case "withdrawCollateral":
+        withdrawCollateralHook.withdrawCollateral(
+          amount,
+          market.collateralDecimals,
+        );
         break;
 
-      case 'borrow':
+      case "borrow":
         borrowHook.borrow(amount, market.borrowDecimals);
         break;
 
-      case 'repay': {
+      case "repay": {
         const amountBigInt = parseTokenInput(amount, market.borrowDecimals);
 
         // Check if user is repaying all debt (amount equals or exceeds total debt)
@@ -250,12 +280,12 @@ export default function SupplyBorrowFormEnhanced({
         // When repaying all, add 1% buffer to account for accrued interest between approval and repay
         // This ensures we have enough approval even if interest accrues
         const amountToApprove = isRepayingAll
-          ? (userPosition.borrowed * 101n) / 100n  // 1% buffer for accrued interest
+          ? (userPosition.borrowed * 101n) / 100n // 1% buffer for accrued interest
           : amountBigInt;
 
         if (borrowTokenBalance && borrowTokenBalance.value < amountBigInt) {
           alert(
-            `Insufficient balance. You have ${formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals)} ${borrowSymbol}`
+            `Insufficient balance. You have ${formatUnits(borrowTokenBalance.value, borrowTokenBalance.decimals)} ${borrowSymbol}`,
           );
           return;
         }
@@ -278,49 +308,80 @@ export default function SupplyBorrowFormEnhanced({
 
   const getAvailableBalance = () => {
     switch (activeTab) {
-      case 'supply':
+      case "supply":
         return borrowTokenBalance
-          ? formatTokenAmount(borrowTokenBalance.value, borrowTokenBalance.decimals, 6)
-          : '0';
-      case 'withdraw':
-        return formatTokenAmount(userPosition.supplied, market.borrowDecimals, 6);
-      case 'depositCollateral':
+          ? formatTokenAmount(
+              borrowTokenBalance.value,
+              borrowTokenBalance.decimals,
+              6,
+            )
+          : "0";
+      case "withdraw":
+        return formatTokenAmount(
+          userPosition.supplied,
+          market.borrowDecimals,
+          6,
+        );
+      case "depositCollateral":
         return collateralTokenBalance
-          ? formatTokenAmount(collateralTokenBalance.value, collateralTokenBalance.decimals, 6)
-          : '0';
-      case 'withdrawCollateral':
-        return formatTokenAmount(userPosition.collateral, market.collateralDecimals, 6);
-      case 'borrow':
-        return formatTokenAmount(userPosition.maxBorrow, market.borrowDecimals, 6);
-      case 'repay':
-        return formatTokenAmount(userPosition.borrowed, market.borrowDecimals, 6);
+          ? formatTokenAmount(
+              collateralTokenBalance.value,
+              collateralTokenBalance.decimals,
+              6,
+            )
+          : "0";
+      case "withdrawCollateral":
+        return formatTokenAmount(
+          userPosition.collateral,
+          market.collateralDecimals,
+          6,
+        );
+      case "borrow":
+        return formatTokenAmount(
+          userPosition.maxBorrow,
+          market.borrowDecimals,
+          6,
+        );
+      case "repay":
+        return formatTokenAmount(
+          userPosition.borrowed,
+          market.borrowDecimals,
+          6,
+        );
       default:
-        return '0';
+        return "0";
     }
   };
 
   const getButtonText = () => {
-    if (activeTab === 'supply') {
-      const amountBigInt = amount ? parseTokenInput(amount, market.borrowDecimals) : 0n;
+    if (activeTab === "supply") {
+      const amountBigInt = amount
+        ? parseTokenInput(amount, market.borrowDecimals)
+        : 0n;
       if (borrowAllowance < amountBigInt) return `Approve ${borrowSymbol}`;
-      return 'Supply';
+      return "Supply";
     }
-    if (activeTab === 'depositCollateral') {
-      const amountBigInt = amount ? parseTokenInput(amount, market.collateralDecimals) : 0n;
-      if (collateralAllowance < amountBigInt) return `Approve ${collateralSymbol}`;
-      return 'Deposit Collateral';
+    if (activeTab === "depositCollateral") {
+      const amountBigInt = amount
+        ? parseTokenInput(amount, market.collateralDecimals)
+        : 0n;
+      if (collateralAllowance < amountBigInt)
+        return `Approve ${collateralSymbol}`;
+      return "Deposit Collateral";
     }
-    if (activeTab === 'repay') {
-      const amountBigInt = amount ? parseTokenInput(amount, market.borrowDecimals) : 0n;
+    if (activeTab === "repay") {
+      const amountBigInt = amount
+        ? parseTokenInput(amount, market.borrowDecimals)
+        : 0n;
       if (borrowAllowance < amountBigInt) return `Approve ${borrowSymbol}`;
-      return 'Repay';
+      return "Repay";
     }
 
-    if (activeTab === 'withdraw') return 'Withdraw';
-    if (activeTab === 'withdrawCollateral') return 'Withdraw Collateral';
-    if (activeTab === 'borrow') return 'Borrow';
+    if (activeTab === "withdraw") return "Withdraw";
+    if (activeTab === "withdrawCollateral") return "Withdraw Collateral";
+    if (activeTab === "borrow") return "Borrow";
 
-    return 'Submit';
+    return "Submit";
   };
 
   const isProcessing = () => {
@@ -363,7 +424,9 @@ export default function SupplyBorrowFormEnhanced({
   if (!isConnected) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center sticky top-8">
-        <p className="mb-4 text-gray-600">Connect your wallet to interact with this market</p>
+        <p className="mb-4 text-gray-600">
+          Connect your wallet to interact with this market
+        </p>
         <ConnectButton />
       </div>
     );
@@ -376,7 +439,10 @@ export default function SupplyBorrowFormEnhanced({
       {/* Health Factor Display (if user has position) */}
       {(userPosition.collateral > 0n || userPosition.borrowed > 0n) && (
         <div className="mb-6">
-          <HealthFactorDisplay healthFactor={userPosition.healthFactor} size="md" />
+          <HealthFactorDisplay
+            healthFactor={userPosition.healthFactor}
+            size="md"
+          />
         </div>
       )}
 
@@ -435,7 +501,8 @@ export default function SupplyBorrowFormEnhanced({
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2 text-gray-700">
             Amount (
-            {activeTab === 'depositCollateral' || activeTab === 'withdrawCollateral'
+            {activeTab === "depositCollateral" ||
+            activeTab === "withdrawCollateral"
               ? collateralSymbol
               : borrowSymbol}
             )
@@ -459,37 +526,48 @@ export default function SupplyBorrowFormEnhanced({
           </div>
           <div className="flex justify-between mt-2 text-sm text-gray-600">
             <span>
-              {activeTab === 'supply'
-                ? 'Wallet Balance'
-                : activeTab === 'withdraw'
-                  ? 'Supplied Balance'
-                  : activeTab === 'depositCollateral'
-                    ? 'Wallet Balance'
-                    : activeTab === 'withdrawCollateral'
-                      ? 'Collateral Balance'
-                      : activeTab === 'borrow'
-                        ? 'Max Borrow'
-                        : 'Current Debt'}
+              {activeTab === "supply"
+                ? "Wallet Balance"
+                : activeTab === "withdraw"
+                  ? "Supplied Balance"
+                  : activeTab === "depositCollateral"
+                    ? "Wallet Balance"
+                    : activeTab === "withdrawCollateral"
+                      ? "Collateral Balance"
+                      : activeTab === "borrow"
+                        ? "Max Borrow"
+                        : "Current Debt"}
             </span>
             <span className="font-medium">{getAvailableBalance()}</span>
           </div>
 
           {/* Show max borrow hint */}
-          {activeTab === 'borrow' && userPosition.maxBorrow > 0n && (
+          {activeTab === "borrow" && userPosition.maxBorrow > 0n && (
             <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded">
-              💡 Max safe borrow: {formatTokenAmount(userPosition.maxBorrow, market.borrowDecimals, 6)}{' '}
+              💡 Max safe borrow:{" "}
+              {formatTokenAmount(
+                userPosition.maxBorrow,
+                market.borrowDecimals,
+                6,
+              )}{" "}
               {borrowSymbol} (75% LTV)
-              {availableLiquidity !== undefined && availableLiquidity < userPosition.maxBorrow && (
-                <div className="text-orange-600 mt-1">
-                  ⚠️ Limited by pool liquidity: {formatTokenAmount(availableLiquidity, market.borrowDecimals, 6)}
-                </div>
-              )}
+              {availableLiquidity !== undefined &&
+                availableLiquidity < userPosition.maxBorrow && (
+                  <div className="text-orange-600 mt-1">
+                    ⚠️ Limited by pool liquidity:{" "}
+                    {formatTokenAmount(
+                      availableLiquidity,
+                      market.borrowDecimals,
+                      6,
+                    )}
+                  </div>
+                )}
             </div>
           )}
         </div>
 
         {/* Transaction Preview */}
-        {amount && parseFloat(amount) > 0 && (
+        {/* {amount && parseFloat(amount) > 0 && (
           <TransactionPreview
             mode={activeTab}
             amount={amount}
@@ -504,7 +582,7 @@ export default function SupplyBorrowFormEnhanced({
             collateralSymbol={collateralSymbol}
             borrowSymbol={borrowSymbol}
           />
-        )}
+        )} */}
 
         {/* Submit Button */}
         <button
@@ -512,7 +590,7 @@ export default function SupplyBorrowFormEnhanced({
           disabled={!amount || parseFloat(amount) <= 0 || isProcessing()}
           className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mt-4"
         >
-          {isProcessing() ? 'Processing...' : getButtonText()}
+          {isProcessing() ? "Processing..." : getButtonText()}
         </button>
       </form>
 
@@ -558,11 +636,13 @@ export default function SupplyBorrowFormEnhanced({
         <div
           className={`mt-4 p-4 rounded-lg text-sm ${
             isCriticalError(currentError)
-              ? 'bg-red-50 text-red-800 border border-red-200'
-              : 'bg-orange-50 text-orange-800 border border-orange-200'
+              ? "bg-red-50 text-red-800 border border-red-200"
+              : "bg-orange-50 text-orange-800 border border-orange-200"
           }`}
         >
-          <div className="font-semibold mb-1">{getErrorTitle(currentError)}</div>
+          <div className="font-semibold mb-1">
+            {getErrorTitle(currentError)}
+          </div>
           <div>{parseContractError(currentError)}</div>
         </div>
       )}
@@ -608,12 +688,12 @@ function TabButton({
       type="button"
       onClick={() => {
         setActiveTab(tab);
-        setAmount('');
+        setAmount("");
       }}
       className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
         activeTab === tab
-          ? 'bg-blue-500 text-white shadow-sm'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ? "bg-blue-500 text-white shadow-sm"
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
       }`}
     >
       {label}
