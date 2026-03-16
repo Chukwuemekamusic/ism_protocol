@@ -19,6 +19,6 @@ export {
   ERC20_ABI,
   POOLTOKEN_ABI as POOL_TOKEN_ABI,
   INTERESTRATEMODEL_ABI as INTEREST_RATE_MODEL_ABI,
-} from './abis.generated';
+} from './abis.generated.js';
 
 // Note: Human-readable ABIs are kept in abis.human-readable.ts for reference/documentation only

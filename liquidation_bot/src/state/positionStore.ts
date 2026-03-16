@@ -1,4 +1,4 @@
-import { Position } from "../types";
+import { Position } from "../types.js";
 
 /**
  * PositionStore — In-memory tracker of all user positions across all markets.

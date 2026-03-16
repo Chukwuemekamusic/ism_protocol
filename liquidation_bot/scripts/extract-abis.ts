@@ -10,6 +10,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Paths relative to liquidation_bot/
 const FOUNDRY_OUT_DIR = path.join(__dirname, '../../contracts/out');

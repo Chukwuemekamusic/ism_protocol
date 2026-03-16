@@ -1,4 +1,4 @@
-import { Auction } from "../types";
+import { Auction } from "../types.js";
 
 /**
  * AuctionStore — In-memory tracker of all Dutch auctions.
@@ -16,7 +16,7 @@ import { Auction } from "../types";
  * ─────────────────
  * 1. AuctionStarted event → add() — store the auction details
  * 2. Time passes → price decays from startPrice toward endPrice
- * 3a. LiquidationExecuted event → markCompleted() — auction fulfilled
+ * 3a. AuctionExecuted event → markCompleted() — auction fulfilled
  * 3b. AuctionCancelled event → markCompleted() — auction expired/cancelled
  * 3c. endTime passes → removeExpired() cleans it up
  *

@@ -45,7 +45,7 @@ contract LiquidationHandler is Test {
     event BorrowerAdded(address indexed borrower);
     event LiquidatorAdded(address indexed liquidator);
     event AuctionStartedHandler(uint256 indexed auctionId, uint256 startPrice, uint256 endPrice);
-    event LiquidationExecutedHandler(uint256 indexed auctionId, uint256 debtRepaid, uint256 collateralReceived);
+    event AuctionExecutedHandler(uint256 indexed auctionId, uint256 debtRepaid, uint256 collateralReceived);
     event PriceRecorded(uint256 indexed auctionId, uint256 price, uint256 timestamp);
 
     constructor(address _pool, address _liquidator, address _collateral, address _borrow) {
@@ -156,7 +156,7 @@ contract LiquidationHandler is Test {
         ghostTotalDebtCleaned += debtRepaid;
         ghostTotalLiquidations++;
 
-        emit LiquidationExecutedHandler(auctionId, debtRepaid, collateralReceived);
+        emit AuctionExecutedHandler(auctionId, debtRepaid, collateralReceived);
     }
 
     /// @notice Handler: Time warp to progress auction
