@@ -1,0 +1,239 @@
+"""
+ISM Protocol Subgraph Schema
+Tracks lending pools, user positions, auctions, and liquidations
+"""
+
+type Protocol @entity {
+  id: ID! # "protocol"
+  totalMarkets: BigInt!
+  totalValueLockedUSD: BigDecimal!
+  totalBorrowedUSD: BigDecimal!
+  totalLiquidationsUSD: BigDecimal!
+  lastUpdate: BigInt!
+}
+
+type Market @entity {
+  id: ID! # Pool address
+  collateralToken: Token!
+  borrowToken: Token!
+  poolToken: Bytes!
+
+  # Aggregated stats
+  totalSupplyAssets: BigInt!
+  totalBorrowAssets: BigInt!
+  totalCollateral: BigInt!
+  totalReserves: BigInt!
+
+  # Rates and metrics
+  borrowRate: BigInt!
+  supplyRate: BigInt!
+  utilizationRate: BigDecimal!
+  borrowIndex: BigInt!
+
+  # USD values (for analytics)
+  totalSupplyUSD: BigDecimal!
+  totalBorrowUSD: BigDecimal!
+  totalCollateralUSD: BigDecimal!
+
+  # Risk parameters
+  ltv: BigInt!
+  liquidationThreshold: BigInt!
+  liquidationPenalty: BigInt!
+
+  # Timestamps
+  createdAt: BigInt!
+  lastAccrualTime: BigInt!
+  lastUpdate: BigInt!
+
+  # Relationships
+  positions: [Position!]! @derivedFrom(field: "market")
+  auctions: [Auction!]! @derivedFrom(field: "market")
+  liquidations: [Liquidation!]! @derivedFrom(field: "market")
+  snapshots: [MarketSnapshot!]! @derivedFrom(field: "market")
+}
+
+type Token @entity {
+  id: ID! # Token address
+  symbol: String!
+  name: String!
+  decimals: Int!
+
+  # Markets using this token
+  marketsAsCollateral: [Market!]! @derivedFrom(field: "collateralToken")
+  marketsAsBorrow: [Market!]! @derivedFrom(field: "borrowToken")
+}
+
+type Position @entity {
+  id: ID! # market-user
+  market: Market!
+  user: User!
+
+  # Balances
+  suppliedShares: BigInt!
+  suppliedAssets: BigInt!
+  collateralAmount: BigInt!
+  borrowedAmount: BigInt!
+  borrowShares: BigInt!
+
+  # Metrics
+  healthFactor: BigDecimal!
+  isLiquidatable: Boolean!
+  timeUnderwater: BigInt! # Seconds position has been liquidatable (0 if healthy)
+  underwaterSince: BigInt! # Timestamp when position became liquidatable (0 if healthy)
+
+  # USD values
+  suppliedUSD: BigDecimal!
+  collateralUSD: BigDecimal!
+  borrowedUSD: BigDecimal!
+
+  # Timestamps
+  createdAt: BigInt!
+  lastUpdate: BigInt!
+
+  # Relationships
+  auctions: [Auction!]! @derivedFrom(field: "position")
+}
+
+type User @entity {
+  id: ID! # User address
+
+  # Aggregated stats
+  totalSuppliedUSD: BigDecimal!
+  totalBorrowedUSD: BigDecimal!
+  totalLiquidations: BigInt!
+  totalLiquidationsExecuted: BigInt!
+  totalProfitUSD: BigDecimal!
+
+  # Timestamps
+  firstInteraction: BigInt!
+  lastInteraction: BigInt!
+
+  # Relationships
+  positions: [Position!]! @derivedFrom(field: "user")
+  liquidationsReceived: [Liquidation!]! @derivedFrom(field: "borrower")
+  liquidationsExecuted: [Liquidation!]! @derivedFrom(field: "liquidator")
+}
+
+type Auction @entity {
+  id: ID! # Auction ID from contract
+  position: Position!
+  market: Market!
+  borrower: User!
+
+  # Auction parameters
+  collateralAmount: BigInt!
+  debtAmount: BigInt!
+  startTime: BigInt!
+  endTime: BigInt!
+  startPriceMultiplier: BigInt! # e.g., 105% = 1.05e18
+  endPriceMultiplier: BigInt!   # e.g., 95% = 0.95e18
+
+  # Current state
+  currentPriceMultiplier: BigInt!
+  isActive: Boolean!
+  startedBy: Bytes! # Address that triggered the auction
+
+  # USD values
+  collateralValueUSD: BigDecimal!
+  debtValueUSD: BigDecimal!
+
+  # Resolution
+  liquidation: Liquidation
+
+  # Timestamps
+  createdAt: BigInt!
+  updatedAt: BigInt!
+}
+
+type Liquidation @entity {
+  id: ID! # Transaction hash + log index
+  auction: Auction!
+  market: Market!
+  liquidator: User!
+  borrower: User!
+
+  # Amounts
+  debtRepaid: BigInt!
+  collateralReceived: BigInt!
+  penalty: BigInt!
+
+  # USD values
+  debtRepaidUSD: BigDecimal!
+  collateralReceivedUSD: BigDecimal!
+  profitUSD: BigDecimal!
+
+  # Execution details
+  gasPaid: BigInt!
+  gasPrice: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+  blockNumber: BigInt!
+}
+
+"""
+Daily snapshots for historical analytics
+"""
+type MarketSnapshot @entity {
+  id: ID! # market-day (e.g., "0x123...abc-19800")
+  market: Market!
+  day: Int! # Days since epoch (timestamp / 86400)
+
+  # Daily metrics
+  totalSupplyAssets: BigInt!
+  totalBorrowAssets: BigInt!
+  totalCollateral: BigInt!
+  borrowRate: BigInt!
+  supplyRate: BigInt!
+  utilizationRate: BigDecimal!
+
+  # USD values
+  totalSupplyUSD: BigDecimal!
+  totalBorrowUSD: BigDecimal!
+  totalCollateralUSD: BigDecimal!
+
+  # Activity counts
+  dailyDeposits: BigInt!
+  dailyWithdrawals: BigInt!
+  dailyBorrows: BigInt!
+  dailyRepayments: BigInt!
+  dailyLiquidations: BigInt!
+
+  # Volume
+  dailyDepositVolumeUSD: BigDecimal!
+  dailyBorrowVolumeUSD: BigDecimal!
+  dailyLiquidationVolumeUSD: BigDecimal!
+
+  timestamp: BigInt!
+}
+
+"""
+Tracks individual transactions for user history
+"""
+type Transaction @entity {
+  id: ID! # Transaction hash + log index
+  type: TransactionType!
+  market: Market!
+  user: User!
+
+  # Amounts (depending on type)
+  amount: BigInt!
+  amountUSD: BigDecimal!
+
+  # Transaction details
+  gasUsed: BigInt!
+  gasPrice: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAW
+  BORROW
+  REPAY
+  DEPOSIT_COLLATERAL
+  WITHDRAW_COLLATERAL
+  LIQUIDATION
+  AUCTION_START
+}

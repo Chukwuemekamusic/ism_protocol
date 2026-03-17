@@ -1,0 +1,134 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  # Market Registry - tracks all created markets
+  - kind: ethereum/contract
+    name: MarketRegistry
+    network: base-sepolia
+    source:
+      address: "0xB7fC139046a2d976060e2dB969b6Dd63ACeEA3f4"
+      abi: MarketRegistry
+      startBlock: 18500000 # Update with actual deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Token
+        - Protocol
+      abis:
+        - name: MarketRegistry
+          file: ./abis/MarketRegistry.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: MarketAdded(indexed address,address,address)
+          handler: handleMarketAdded
+      file: ./src/market-registry.ts
+
+  # Market Factory - tracks market creation
+  - kind: ethereum/contract
+    name: MarketFactory
+    network: base-sepolia
+    source:
+      address: "0x403276c627737cAb896BbdDEfEd4538d9a6aE5C0"
+      abi: MarketFactory
+      startBlock: 18500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Token
+      abis:
+        - name: MarketFactory
+          file: ./abis/MarketFactory.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: MarketCreated(indexed address,address,address,address)
+          handler: handleMarketCreated
+      file: ./src/market-factory.ts
+
+  # Dutch Auction Liquidator
+  - kind: ethereum/contract
+    name: DutchAuctionLiquidator
+    network: base-sepolia
+    source:
+      address: "0x7514D0B0883cfCb2f7Cc5AeB512D9c5ab91160E2"
+      abi: DutchAuctionLiquidator
+      startBlock: 18500000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Auction
+        - Liquidation
+        - Position
+        - User
+      abis:
+        - name: DutchAuctionLiquidator
+          file: ./abis/DutchAuctionLiquidator.json
+        - name: LendingPool
+          file: ./abis/LendingPool.json
+        - name: OracleRouter
+          file: ./abis/OracleRouter.json
+      eventHandlers:
+        - event: AuctionStarted(indexed uint256,indexed address,indexed address,address,uint256,uint256)
+          handler: handleAuctionStarted
+        - event: AuctionExecuted(indexed uint256,indexed address,address,uint256,uint256)
+          handler: handleAuctionExecuted
+        - event: AuctionCancelled(indexed uint256)
+          handler: handleAuctionCancelled
+      file: ./src/dutch-auction-liquidator.ts
+
+# Dynamic data sources for LendingPools (created when markets are added)
+templates:
+  - kind: ethereum/contract
+    name: LendingPool
+    network: base-sepolia
+    source:
+      abi: LendingPool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - Position
+        - User
+        - Transaction
+        - MarketSnapshot
+      abis:
+        - name: LendingPool
+          file: ./abis/LendingPool.json
+        - name: OracleRouter
+          file: ./abis/OracleRouter.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Deposit(indexed address,uint256,uint256)
+          handler: handleDeposit
+        - event: Withdraw(indexed address,uint256,uint256)
+          handler: handleWithdraw
+        - event: Borrow(indexed address,uint256)
+          handler: handleBorrow
+        - event: Repay(indexed address,uint256)
+          handler: handleRepay
+        - event: CollateralDeposited(indexed address,uint256)
+          handler: handleCollateralDeposited
+        - event: CollateralWithdrawn(indexed address,uint256)
+          handler: handleCollateralWithdrawn
+        - event: InterestAccrued(uint256,uint256,uint256)
+          handler: handleInterestAccrued
+      file: ./src/lending-pool.ts
