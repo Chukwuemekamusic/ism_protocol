@@ -5,8 +5,9 @@
   "repository": "https://github.com/your-repo/ism-protocol",
   "license": "MIT",
   "scripts": {
-    "codegen": "graph codegen",
-    "build": "graph build",
+    "sync-abis": "node scripts/sync-abis.js",
+    "codegen": "npm run sync-abis && graph codegen",
+    "build": "npm run sync-abis && graph build",
     "deploy": "graph deploy --studio ism-protocol",
     "create-local": "graph create --node http://localhost:8020/ ism-protocol",
     "remove-local": "graph remove --node http://localhost:8020/ ism-protocol",

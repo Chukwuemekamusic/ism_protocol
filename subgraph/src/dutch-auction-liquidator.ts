@@ -11,10 +11,11 @@ const WAD = BigInt.fromI32(10).pow(18);
 export function handleAuctionStarted(event: AuctionStarted): void {
   const auctionId = event.params.auctionId;
   const poolAddress = event.params.pool;
-  const borrower = event.params.borrower;
-  const initiator = event.params.initiator;
-  const collateralAmount = event.params.collateralAmount;
-  const debtAmount = event.params.debtAmount;
+  const borrower = event.params.user;
+  const collateralAmount = event.params.collateralForSale;
+  const debtAmount = event.params.debtToRepay;
+  const startPrice = event.params.startPrice;
+  const endPrice = event.params.endPrice;
 
   // Create auction entity
   const auction = new Auction(auctionId.toString());
@@ -33,15 +34,16 @@ export function handleAuctionStarted(event: AuctionStarted): void {
   auction.debtAmount = debtAmount;
   auction.startTime = event.block.timestamp;
 
-  // Default auction parameters (20 minutes duration, 105% start, 95% end)
+  // Estimate end time (assuming 20 minute duration as per protocol default)
   const AUCTION_DURATION = BigInt.fromI32(20 * 60); // 20 minutes
   auction.endTime = event.block.timestamp.plus(AUCTION_DURATION);
-  auction.startPriceMultiplier = BigInt.fromI32(105).times(WAD).div(BigInt.fromI32(100)); // 1.05e18
-  auction.endPriceMultiplier = BigInt.fromI32(95).times(WAD).div(BigInt.fromI32(100)); // 0.95e18
 
-  auction.currentPriceMultiplier = auction.startPriceMultiplier;
+  // Set price multipliers from event
+  auction.startPriceMultiplier = startPrice;
+  auction.endPriceMultiplier = endPrice;
+  auction.currentPriceMultiplier = startPrice;
   auction.isActive = true;
-  auction.startedBy = initiator;
+  auction.startedBy = event.transaction.from; // Use transaction sender
 
   // Calculate USD values (simplified - would need oracle integration for accuracy)
   auction.collateralValueUSD = BigInt.fromI32(0).toBigDecimal();
@@ -56,9 +58,9 @@ export function handleAuctionStarted(event: AuctionStarted): void {
 export function handleAuctionExecuted(event: AuctionExecuted): void {
   const auctionId = event.params.auctionId;
   const liquidator = event.params.liquidator;
-  const borrower = event.params.borrower;
   const debtRepaid = event.params.debtRepaid;
-  const collateralReceived = event.params.collateralReceived;
+  const collateralSold = event.params.collateralSold;
+  const executionPrice = event.params.executionPrice;
 
   // Load auction
   const auction = Auction.load(auctionId.toString());
@@ -77,14 +79,15 @@ export function handleAuctionExecuted(event: AuctionExecuted): void {
   liquidation.auction = auction.id;
   liquidation.market = auction.market;
   liquidation.liquidator = getOrCreateUser(liquidator).id;
-  liquidation.borrower = getOrCreateUser(borrower).id;
+  liquidation.borrower = auction.borrower; // Get borrower from auction
 
   // Set amounts
   liquidation.debtRepaid = debtRepaid;
-  liquidation.collateralReceived = collateralReceived;
+  liquidation.collateralReceived = collateralSold;
 
-  // Calculate penalty (collateral received - debt repaid value)
-  liquidation.penalty = BigInt.fromI32(0); // Would need oracle prices for accurate calculation
+  // Calculate penalty (difference between collateral value and debt)
+  // penalty = collateralSold * executionPrice - debtRepaid (simplified)
+  liquidation.penalty = BigInt.fromI32(0); // Simplified for now
 
   // USD values (simplified)
   liquidation.debtRepaidUSD = BigInt.fromI32(0).toBigDecimal();
@@ -105,7 +108,8 @@ export function handleAuctionExecuted(event: AuctionExecuted): void {
   auction.save();
 
   // Update user stats
-  updateUserLiquidationStats(liquidator, borrower);
+  const borrowerAddress = Address.fromString(auction.borrower);
+  updateUserLiquidationStats(liquidator, borrowerAddress);
 }
 
 export function handleAuctionCancelled(event: AuctionCancelled): void {

@@ -2,16 +2,15 @@ specVersion: 1.0.0
 indexerHints:
   prune: auto
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
-  # Market Registry - tracks all created markets
   - kind: ethereum/contract
     name: MarketRegistry
     network: base-sepolia
     source:
       address: "0xB7fC139046a2d976060e2dB969b6Dd63ACeEA3f4"
       abi: MarketRegistry
-      startBlock: 18500000 # Update with actual deployment block
+      startBlock: 18500000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -22,17 +21,15 @@ dataSources:
         - Protocol
       abis:
         - name: MarketRegistry
-          file: ./abis/MarketRegistry.json
+          file: MarketRegistry/MarketRegistry.json
         - name: LendingPool
-          file: ./abis/LendingPool.json
+          file: MarketRegistry/LendingPool.json
         - name: ERC20
-          file: ./abis/ERC20.json
+          file: MarketRegistry/ERC20.json
       eventHandlers:
         - event: MarketRegistered(indexed address,indexed address,indexed address)
           handler: handleMarketRegistered
-      file: ./src/market-registry.ts
-
-  # Market Factory - tracks market creation
+      file: MarketRegistry/MarketRegistry.wasm
   - kind: ethereum/contract
     name: MarketFactory
     network: base-sepolia
@@ -49,17 +46,15 @@ dataSources:
         - Token
       abis:
         - name: MarketFactory
-          file: ./abis/MarketFactory.json
+          file: MarketFactory/MarketFactory.json
         - name: LendingPool
-          file: ./abis/LendingPool.json
+          file: MarketFactory/LendingPool.json
         - name: ERC20
-          file: ./abis/ERC20.json
+          file: MarketFactory/ERC20.json
       eventHandlers:
         - event: MarketCreated(indexed address,indexed address,indexed address,address)
           handler: handleMarketCreated
-      file: ./src/market-factory.ts
-
-  # Dutch Auction Liquidator
+      file: MarketFactory/MarketFactory.wasm
   - kind: ethereum/contract
     name: DutchAuctionLiquidator
     network: base-sepolia
@@ -78,21 +73,20 @@ dataSources:
         - User
       abis:
         - name: DutchAuctionLiquidator
-          file: ./abis/DutchAuctionLiquidator.json
+          file: DutchAuctionLiquidator/DutchAuctionLiquidator.json
         - name: LendingPool
-          file: ./abis/LendingPool.json
+          file: DutchAuctionLiquidator/LendingPool.json
         - name: OracleRouter
-          file: ./abis/OracleRouter.json
+          file: DutchAuctionLiquidator/OracleRouter.json
       eventHandlers:
-        - event: AuctionStarted(indexed uint256,indexed address,indexed address,uint256,uint256,uint256,uint256)
+        - event: AuctionStarted(indexed uint256,indexed address,indexed
+            address,uint256,uint256,uint256,uint256)
           handler: handleAuctionStarted
         - event: AuctionExecuted(indexed uint256,indexed address,uint256,uint256,uint256)
           handler: handleAuctionExecuted
         - event: AuctionCancelled(indexed uint256,string)
           handler: handleAuctionCancelled
-      file: ./src/dutch-auction-liquidator.ts
-
-# Dynamic data sources for LendingPools (created when markets are added)
+      file: DutchAuctionLiquidator/DutchAuctionLiquidator.wasm
 templates:
   - kind: ethereum/contract
     name: LendingPool
@@ -111,11 +105,11 @@ templates:
         - MarketSnapshot
       abis:
         - name: LendingPool
-          file: ./abis/LendingPool.json
+          file: LendingPool/LendingPool.json
         - name: OracleRouter
-          file: ./abis/OracleRouter.json
+          file: LendingPool/OracleRouter.json
         - name: ERC20
-          file: ./abis/ERC20.json
+          file: LendingPool/ERC20.json
       eventHandlers:
         - event: Deposit(indexed address,uint256,uint256)
           handler: handleDeposit
@@ -131,4 +125,4 @@ templates:
           handler: handleWithdrawCollateral
         - event: InterestAccrued(uint256,uint256,uint256)
           handler: handleInterestAccrued
-      file: ./src/lending-pool.ts
+      file: templates/LendingPool/LendingPool.wasm

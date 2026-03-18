@@ -6,7 +6,7 @@ import { ERC20 } from '../generated/MarketFactory/ERC20';
 import { BigInt, Address } from '@graphprotocol/graph-ts';
 
 export function handleMarketCreated(event: MarketCreated): void {
-  const poolAddress = event.params.pool;
+  const poolAddress = event.params.market;
   const collateralToken = event.params.collateralToken;
   const borrowToken = event.params.borrowToken;
   const poolToken = event.params.poolToken;
@@ -38,19 +38,10 @@ export function handleMarketCreated(event: MarketCreated): void {
     market.totalBorrowUSD = BigInt.fromI32(0).toBigDecimal();
     market.totalCollateralUSD = BigInt.fromI32(0).toBigDecimal();
 
-    // Load risk parameters from pool
-    const poolContract = LendingPoolContract.bind(poolAddress);
-    const ltv = poolContract.try_LTV();
-    const liquidationThreshold = poolContract.try_LIQUIDATION_THRESHOLD();
-    const liquidationPenalty = poolContract.try_LIQUIDATION_PENALTY();
-
-    market.ltv = ltv.reverted ? BigInt.fromI32(75).times(BigInt.fromI32(10).pow(16)) : ltv.value; // Default 75%
-    market.liquidationThreshold = liquidationThreshold.reverted
-      ? BigInt.fromI32(80).times(BigInt.fromI32(10).pow(16))
-      : liquidationThreshold.value; // Default 80%
-    market.liquidationPenalty = liquidationPenalty.reverted
-      ? BigInt.fromI32(5).times(BigInt.fromI32(10).pow(16))
-      : liquidationPenalty.value; // Default 5%
+    // Set risk parameters (using protocol defaults as they're not exposed in ABI)
+    market.ltv = BigInt.fromI32(75).times(BigInt.fromI32(10).pow(16)); // 75% = 0.75e18
+    market.liquidationThreshold = BigInt.fromI32(80).times(BigInt.fromI32(10).pow(16)); // 80% = 0.80e18
+    market.liquidationPenalty = BigInt.fromI32(5).times(BigInt.fromI32(10).pow(16)); // 5% = 0.05e18
 
     // Timestamps
     market.createdAt = event.block.timestamp;
