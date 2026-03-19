@@ -4,7 +4,7 @@
 
 Your ISM Protocol subgraph is **LIVE** and indexing events on Base Sepolia.
 
-**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1
+**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest
 **Studio Dashboard**: https://thegraph.com/studio/subgraph/ism-protocol
 
 ## 📋 What's Been Set Up
@@ -33,7 +33,7 @@ Your ISM Protocol subgraph is **LIVE** and indexing events on Base Sepolia.
 ### Test the Subgraph (Right Now!)
 
 Visit the GraphQL Playground:
-**https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1**
+**https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest**
 
 Try this query:
 

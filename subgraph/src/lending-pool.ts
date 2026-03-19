@@ -13,12 +13,52 @@ import {
   User,
   Transaction,
   MarketSnapshot,
+  Protocol,
+  Token,
 } from '../generated/schema';
 import { LendingPool as LendingPoolContract } from '../generated/templates/LendingPool/LendingPool';
-import { BigInt, BigDecimal, Address, Bytes } from '@graphprotocol/graph-ts';
+import { OracleRouter as OracleRouterContract } from '../generated/templates/LendingPool/OracleRouter';
+import { BigInt, BigDecimal, Address, Bytes, store } from '@graphprotocol/graph-ts';
 
 const WAD = BigInt.fromI32(10).pow(18);
 const SECONDS_PER_DAY = BigInt.fromI32(86400);
+const ORACLE_ROUTER_ADDRESS = Address.fromString('0xD8f530eB3B624c6D4E89d504E48F8b0d00BF0a97');
+
+/**
+ * Calculate USD value for a token amount using OracleRouter
+ * @param tokenAddress - Address of the token
+ * @param amount - Raw token amount (in token's native decimals)
+ * @param decimals - Token decimals
+ * @returns USD value as BigDecimal
+ */
+function calculateUSDValue(tokenAddress: Address, amount: BigInt, decimals: i32): BigDecimal {
+  if (amount.equals(BigInt.fromI32(0))) {
+    return BigDecimal.fromString('0');
+  }
+
+  // Bind to OracleRouter contract
+  const oracleRouter = OracleRouterContract.bind(ORACLE_ROUTER_ADDRESS);
+
+  // Get token price in USD (returns price in 1e18 format)
+  const priceResult = oracleRouter.try_getPrice(tokenAddress);
+
+  if (priceResult.reverted) {
+    // Oracle call failed, return 0
+    return BigDecimal.fromString('0');
+  }
+
+  const priceIn1e18 = priceResult.value;
+
+  // Convert amount from token decimals to standard decimal
+  const tokenDecimalsDivisor = BigInt.fromI32(10).pow(u8(decimals));
+  const amountInStandardDecimals = amount.toBigDecimal().div(tokenDecimalsDivisor.toBigDecimal());
+
+  // Convert price from 1e18 to standard decimal
+  const priceInUSD = priceIn1e18.toBigDecimal().div(WAD.toBigDecimal());
+
+  // Calculate USD value: amount * price
+  return amountInStandardDecimals.times(priceInUSD);
+}
 
 export function handleDeposit(event: Deposit): void {
   const poolAddress = event.address;
@@ -214,6 +254,12 @@ function updateMarket(poolAddress: Address, timestamp: BigInt): void {
 
   const poolContract = LendingPoolContract.bind(poolAddress);
 
+  // Store previous values for delta calculation
+  const previousSupply = market.totalSupplyAssets;
+  const previousBorrow = market.totalBorrowAssets;
+  const previousSupplyUSD = market.totalSupplyUSD;
+  const previousBorrowUSD = market.totalBorrowUSD;
+
   // Update balances
   const totalSupply = poolContract.try_totalSupplyAssets();
   const totalBorrow = poolContract.try_totalBorrowAssets();
@@ -239,11 +285,83 @@ function updateMarket(poolAddress: Address, timestamp: BigInt): void {
     market.utilizationRate = BigInt.fromI32(0).toBigDecimal();
   }
 
+  // Calculate USD values using OracleRouter
+  // Load token entities to get addresses and decimals
+  const collateralToken = Token.load(market.collateralToken);
+  const borrowToken = Token.load(market.borrowToken);
+
+  if (collateralToken != null && borrowToken != null) {
+    const collateralTokenAddress = Address.fromString(collateralToken.id);
+    const borrowTokenAddress = Address.fromString(borrowToken.id);
+
+    // Supply is denominated in borrow token
+    market.totalSupplyUSD = calculateUSDValue(
+      borrowTokenAddress,
+      market.totalSupplyAssets,
+      borrowToken.decimals
+    );
+
+    // Borrow is denominated in borrow token
+    market.totalBorrowUSD = calculateUSDValue(
+      borrowTokenAddress,
+      market.totalBorrowAssets,
+      borrowToken.decimals
+    );
+
+    // Collateral is denominated in collateral token
+    market.totalCollateralUSD = calculateUSDValue(
+      collateralTokenAddress,
+      market.totalCollateral,
+      collateralToken.decimals
+    );
+  } else {
+    // Fallback to 0 if tokens not found
+    market.totalSupplyUSD = BigDecimal.fromString('0');
+    market.totalBorrowUSD = BigDecimal.fromString('0');
+    market.totalCollateralUSD = BigDecimal.fromString('0');
+  }
+
   // Note: borrowRate and supplyRate would need to be calculated from InterestRateModel
   // For now, they're updated via InterestAccrued event
 
   market.lastUpdate = timestamp;
   market.save();
+
+  // Update protocol-level aggregates with deltas
+  updateProtocolAggregates(
+    timestamp,
+    market.totalSupplyUSD,
+    previousSupplyUSD,
+    market.totalBorrowUSD,
+    previousBorrowUSD
+  );
+}
+
+function updateProtocolAggregates(
+  timestamp: BigInt,
+  newSupplyUSD: BigDecimal,
+  prevSupplyUSD: BigDecimal,
+  newBorrowUSD: BigDecimal,
+  prevBorrowUSD: BigDecimal
+): void {
+  let protocol = Protocol.load('protocol');
+  if (protocol == null) {
+    protocol = new Protocol('protocol');
+    protocol.totalMarkets = BigInt.fromI32(0);
+    protocol.totalValueLockedUSD = BigInt.fromI32(0).toBigDecimal();
+    protocol.totalBorrowedUSD = BigInt.fromI32(0).toBigDecimal();
+    protocol.totalLiquidationsUSD = BigInt.fromI32(0).toBigDecimal();
+  }
+
+  // Update aggregates using delta approach
+  const supplyDelta = newSupplyUSD.minus(prevSupplyUSD);
+  const borrowDelta = newBorrowUSD.minus(prevBorrowUSD);
+
+  protocol.totalValueLockedUSD = protocol.totalValueLockedUSD.plus(supplyDelta);
+  protocol.totalBorrowedUSD = protocol.totalBorrowedUSD.plus(borrowDelta);
+  protocol.lastUpdate = timestamp;
+
+  protocol.save();
 }
 
 function updatePosition(poolAddress: Address, userAddress: Address, timestamp: BigInt): void {

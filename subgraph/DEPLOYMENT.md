@@ -3,7 +3,7 @@
 ## ✅ Deployment Status: LIVE
 
 **Deployed**: March 18, 2026
-**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1
+**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest
 **Studio**: https://thegraph.com/studio/subgraph/ism-protocol
 **Build Hash**: QmUBgRGESmhhYLm2qgZbB8BhiHv1zjzUtPBycvs1EYkqBX
 

@@ -1,8 +1,8 @@
 # ISM Protocol Subgraph - Example Queries
 
-**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1
+**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest
 
-Test these queries in the [GraphQL Playground](https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1) or use them in your frontend.
+Test these queries in the [GraphQL Playground](https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest) or use them in your frontend.
 
 ## 🎯 Liquidation Queries
 
@@ -503,6 +503,6 @@ export function useLiquidatablePositions() {
 
 ## 📚 Resources
 
-- [GraphQL Playground](https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1)
+- [GraphQL Playground](https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest)
 - [The Graph Studio](https://thegraph.com/studio/subgraph/ism-protocol)
 - [GraphQL Docs](https://graphql.org/learn/)

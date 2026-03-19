@@ -16,9 +16,12 @@
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "^0.98.1",
-    "@graphprotocol/graph-ts": "^0.35.1"
+    "@graphprotocol/graph-ts": "^0.35.1",
+    "graphql": "^16.13.1",
+    "graphql-request": "^7.4.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "matchstick-as": "^0.6.0"
   }
 }
