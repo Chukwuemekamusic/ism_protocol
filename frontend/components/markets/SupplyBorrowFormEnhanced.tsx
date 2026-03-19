@@ -551,6 +551,9 @@ export default function SupplyBorrowFormEnhanced({
                 6,
               )}{" "}
               {borrowSymbol} (75% LTV)
+              <div className="text-gray-600 mt-1">
+                ℹ️ Max shown is 99% of limit to account for accruing interest
+              </div>
               {availableLiquidity !== undefined &&
                 availableLiquidity < userPosition.maxBorrow && (
                   <div className="text-orange-600 mt-1">

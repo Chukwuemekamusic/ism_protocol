@@ -20,7 +20,7 @@ export const CONTRACT_ERROR_MESSAGES: Record<string, string> = {
 
   // ===== Health Factor Errors =====
   WouldBeUndercollateralized:
-    'This action would make your position unhealthy. You need more collateral or less debt to maintain a safe health factor above 1.0.',
+    'This borrow would make your position unhealthy. Interest accrues between checking max borrow and executing the transaction. Try borrowing slightly less (the UI shows 99% of max for safety), add more collateral, or repay some existing debt to maintain a safe health factor above 1.0.',
 
   // ===== Debt Errors =====
   NoDebt: "You don't have any debt to repay.",

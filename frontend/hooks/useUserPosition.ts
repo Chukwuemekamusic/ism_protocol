@@ -162,13 +162,18 @@ export function useUserMarketPosition(marketAddress: `0x${string}`) {
 
   const positionData = data?.[3]?.result as [bigint, bigint] | undefined;
 
+  // Apply 99% safety buffer to maxBorrow to account for interest accrual
+  // between the view call and transaction execution
+  const rawMaxBorrow = (data?.[6]?.result as bigint) || 0n;
+  const safeMaxBorrow = (rawMaxBorrow * 99n) / 100n;
+
   return {
     supplied,
     collateral: positionData?.[0] || 0n, // First value is collateralAmount
     shares: positionData?.[1] || 0n, // Second value is borrowShares
     borrowed: (data?.[4]?.result as bigint) || 0n,
     healthFactor: Number(data?.[5]?.result || 0n) / 1e18, // Convert from WAD
-    maxBorrow: (data?.[6]?.result as bigint) || 0n,
+    maxBorrow: safeMaxBorrow,
     isLoading,
     error,
     refetch,
