@@ -1,8 +1,11 @@
 # ISM Protocol Subgraph Deployment Guide
 
-## ✅ Build Status: READY
+## ✅ Deployment Status: LIVE
 
-The subgraph compiles successfully and is ready for deployment to The Graph Studio.
+**Deployed**: March 18, 2026
+**Endpoint**: https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1
+**Studio**: https://thegraph.com/studio/subgraph/ism-protocol
+**Build Hash**: QmUBgRGESmhhYLm2qgZbB8BhiHv1zjzUtPBycvs1EYkqBX
 
 ## Quick Deployment
 
@@ -23,7 +26,7 @@ graph auth --studio YOUR_DEPLOY_KEY
 ### 3. Deploy
 
 ```bash
-npm run deploy
+graph deploy ism-protocol
 ```
 
 ## Configuration
