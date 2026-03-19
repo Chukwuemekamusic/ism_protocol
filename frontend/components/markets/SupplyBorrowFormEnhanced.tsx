@@ -423,7 +423,7 @@ export default function SupplyBorrowFormEnhanced({
 
   if (!isConnected) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center sticky top-8">
+      <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center lg:sticky lg:top-8">
         <p className="mb-4 text-gray-600">
           Connect your wallet to interact with this market
         </p>
@@ -433,7 +433,7 @@ export default function SupplyBorrowFormEnhanced({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 sticky top-8">
+    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:sticky lg:top-8">
       <h2 className="text-xl font-semibold mb-6">Manage Position</h2>
 
       {/* Health Factor Display (if user has position) */}
@@ -448,7 +448,7 @@ export default function SupplyBorrowFormEnhanced({
 
       {/* Tabs */}
       <div className="mb-6">
-        <div className="grid grid-cols-3 gap-2 mb-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
           <TabButton
             tab="supply"
             activeTab={activeTab}
@@ -471,7 +471,7 @@ export default function SupplyBorrowFormEnhanced({
             label="Borrow"
           />
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <TabButton
             tab="withdraw"
             activeTab={activeTab}

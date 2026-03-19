@@ -90,7 +90,7 @@ function PositionRow({ position }: { position: any }) {
       </div>
 
       {/* Position Details Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {/* Supplied */}
         {hasSupply && (
           <div className="bg-green-50 rounded-lg p-3 border border-green-100">

@@ -87,7 +87,7 @@ export default function PositionOverview({
       </h3>
 
       {/* Top Grid: Main Position Values */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {/* Supplied */}
         {userPosition.supplied > 0n && (
           <div className="bg-green-50 rounded-lg p-3 border border-green-200">
