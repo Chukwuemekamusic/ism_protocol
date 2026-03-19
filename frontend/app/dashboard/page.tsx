@@ -34,7 +34,7 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4">Connect Your Wallet</h1>
             <p className="text-gray-600 mb-8">
               Connect your wallet to view your portfolio, positions, and manage
               your assets across all markets.
@@ -74,7 +74,7 @@ export default function DashboardPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Portfolio Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Portfolio Dashboard</h1>
           <p className="text-gray-600">Welcome to your portfolio overview</p>
         </div>
 
@@ -95,7 +95,7 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-4">No Positions Yet</h2>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4">No Positions Yet</h2>
             <p className="text-gray-600 mb-8">
               You don't have any active positions. Start by supplying assets or
               borrowing from our markets.
@@ -117,7 +117,7 @@ export default function DashboardPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Portfolio Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Portfolio Dashboard</h1>
         <p className="text-gray-600">
           Track your positions, earnings, and risk across all markets
         </p>

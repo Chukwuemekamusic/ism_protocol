@@ -62,7 +62,7 @@ export default function MarketDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-16">
-          <h1 className="text-2xl font-bold mb-4">Market Not Found</h1>
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4">Market Not Found</h1>
           <p className="text-gray-600 mb-8">The market you're looking for doesn't exist.</p>
           <Link href="/" className="text-blue-600 hover:underline">
             ← Back to Markets
@@ -92,11 +92,11 @@ export default function MarketDetailPage() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 flex items-center gap-3">
           <span>{collateralSymbol}</span>
           <span className="text-gray-400">/</span>
           <span>{borrowSymbol}</span>
-          <span className="text-xl font-normal text-gray-500">Market</span>
+          <span className="text-base sm:text-lg lg:text-xl font-normal text-gray-500">Market</span>
         </h1>
         <AddressDisplay address={marketAddress} className="text-gray-500" />
       </div>

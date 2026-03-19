@@ -13,10 +13,10 @@ export default function HomePage() {
     <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
       <div className="mb-12">
-        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           ISM Protocol
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl">
+        <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl">
           Isolated lending markets on Base. Supply assets to earn interest or borrow against collateral.
         </p>
       </div>
@@ -42,7 +42,7 @@ export default function HomePage() {
       {/* Markets List */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Lending Markets</h2>
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold">Lending Markets</h2>
           <div className="flex gap-2">
             <button className="px-4 py-2 text-sm font-medium rounded-lg bg-white border hover:bg-gray-50 transition-colors">
               All Markets
@@ -137,7 +137,7 @@ function StatCard({
         {isLoading ? (
           <div className="h-9 bg-gray-200 rounded animate-pulse w-32"></div>
         ) : (
-          <p className="text-3xl font-bold">{value}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold">{value}</p>
         )}
         {trend && !isLoading && (
           <span className="text-sm font-medium text-green-600">{trend}</span>
@@ -150,7 +150,7 @@ function StatCard({
 function InfoCard({ icon, title, description }: { icon: string; title: string; description: string }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-      <div className="text-3xl mb-3">{icon}</div>
+      <div className="text-2xl sm:text-3xl mb-3">{icon}</div>
       <h3 className="font-semibold mb-2">{title}</h3>
       <p className="text-sm text-gray-600">{description}</p>
     </div>

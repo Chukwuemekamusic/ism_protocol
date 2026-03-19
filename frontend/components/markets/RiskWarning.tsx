@@ -107,7 +107,7 @@ export default function RiskWarning({ currentHF, newHF, onProceed, onCancel }: R
       className={`border rounded-lg p-5 ${config.bgColor} ${config.borderColor} mt-4 animate-in fade-in slide-in-from-top-2 duration-200`}
     >
       <div className="flex items-start gap-3">
-        <span className="text-3xl flex-shrink-0">{config.emoji}</span>
+        <span className="text-2xl sm:text-3xl flex-shrink-0">{config.emoji}</span>
         <div className="flex-1">
           <h4 className={`font-bold text-lg mb-2 ${config.textColor}`}>{config.title}</h4>
           <p className={`text-sm mb-3 ${config.textColor}`}>{config.message}</p>

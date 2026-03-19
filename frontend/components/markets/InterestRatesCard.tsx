@@ -53,7 +53,7 @@ export function InterestRatesCard({
             <TrendingUp className="w-4 h-4 text-green-600" />
             <p className="text-sm font-medium text-green-700">Supply APY</p>
           </div>
-          <p className="text-3xl font-bold text-green-600">
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">
             {formatAPY(supplyAPY)}
           </p>
           <p className="text-xs text-green-600 mt-1">
@@ -66,7 +66,7 @@ export function InterestRatesCard({
             <TrendingDown className="w-4 h-4 text-blue-600" />
             <p className="text-sm font-medium text-blue-700">Borrow APY</p>
           </div>
-          <p className="text-3xl font-bold text-blue-600">
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">
             {formatAPY(borrowAPY)}
           </p>
           <p className="text-xs text-blue-600 mt-1">

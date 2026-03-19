@@ -111,7 +111,7 @@ export default function PortfolioOverview({ positions }: PortfolioOverviewProps)
               <p className="text-sm font-medium text-gray-700">{stat.title}</p>
               <Icon className={`w-5 h-5 ${iconColorClasses[stat.color as keyof typeof iconColorClasses]}`} />
             </div>
-            <p className={`text-3xl font-bold mb-1 ${valueColorClasses[stat.color as keyof typeof valueColorClasses]}`}>
+            <p className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 ${valueColorClasses[stat.color as keyof typeof valueColorClasses]}`}>
               {stat.value}
             </p>
             <p className="text-xs text-gray-600">{stat.subtext}</p>

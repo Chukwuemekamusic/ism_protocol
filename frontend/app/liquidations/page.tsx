@@ -131,7 +131,7 @@ export default function LiquidationsPage() {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Header Section */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Liquidations</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Liquidations</h1>
         <p className="text-gray-600">
           Monitor liquidation opportunities and participate in Dutch auction liquidations
         </p>
@@ -149,7 +149,7 @@ export default function LiquidationsPage() {
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`h-5 w-5 ${iconColorClasses[stat.color]}`} />
               </div>
-              <div className="text-3xl font-bold mb-1">{stat.value}</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{stat.value}</div>
               <div className="text-sm font-medium text-gray-700 mb-1">{stat.title}</div>
               <div className="text-xs text-gray-500">{stat.description}</div>
             </div>
