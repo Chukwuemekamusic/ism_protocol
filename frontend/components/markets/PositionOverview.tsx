@@ -93,7 +93,7 @@ export default function PositionOverview({
           <div className="bg-green-50 rounded-lg p-3 border border-green-200">
             <p className="text-xs text-green-700 mb-1">Supplied</p>
             <p className="text-lg font-bold text-green-800">
-              {parseFloat(formatUnits(userPosition.supplied, marketData.borrowDecimals)).toFixed(2)}
+              {parseFloat(formatUnits(userPosition.supplied, marketData.borrowDecimals)).toFixed(4)}
             </p>
             <p className="text-xs text-green-700">{borrowSymbol}</p>
           </div>
@@ -112,7 +112,7 @@ export default function PositionOverview({
         <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
           <p className="text-xs text-orange-700 mb-1">Borrowed</p>
           <p className="text-lg font-bold text-orange-800">
-            {parseFloat(formatUnits(userPosition.borrowed, marketData.borrowDecimals)).toFixed(2)}
+            {parseFloat(formatUnits(userPosition.borrowed, marketData.borrowDecimals)).toFixed(4)}
           </p>
           <p className="text-xs text-orange-700">{borrowSymbol} (${debtValueUSD.toFixed(2)})</p>
         </div>

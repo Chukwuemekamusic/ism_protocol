@@ -134,11 +134,11 @@ export default function MarketDetailPage() {
             <div className="space-y-4">
               <InfoRow
                 label="Total Supplied"
-                value={`${formatTokenAmount(market.totalSupply, market.borrowDecimals, 2)} ${borrowSymbol}`}
+                value={`${formatTokenAmount(market.totalSupply, market.borrowDecimals, 4)} ${borrowSymbol}`}
               />
               <InfoRow
                 label="Total Borrowed"
-                value={`${formatTokenAmount(market.totalBorrow, market.borrowDecimals, 2)} ${borrowSymbol}`}
+                value={`${formatTokenAmount(market.totalBorrow, market.borrowDecimals, 4)} ${borrowSymbol}`}
               />
               <InfoRow
                 label="Utilization Rate"
@@ -147,7 +147,7 @@ export default function MarketDetailPage() {
               />
               <InfoRow
                 label="Available Liquidity"
-                value={`${formatTokenAmount(market.totalSupply - market.totalBorrow, market.borrowDecimals, 2)} ${borrowSymbol}`}
+                value={`${formatTokenAmount(market.totalSupply - market.totalBorrow, market.borrowDecimals, 4)} ${borrowSymbol}`}
               />
             </div>
           </div>

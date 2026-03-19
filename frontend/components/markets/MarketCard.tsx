@@ -60,13 +60,13 @@ export default function MarketCard({ marketAddress }: MarketCardProps) {
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Total Supply</span>
             <span className="font-medium">
-              {formatTokenAmount(market.totalSupply, market.borrowDecimals, 2)} {borrowSymbol}
+              {formatTokenAmount(market.totalSupply, market.borrowDecimals, 4)} {borrowSymbol}
             </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Total Borrow</span>
             <span className="font-medium">
-              {formatTokenAmount(market.totalBorrow, market.borrowDecimals, 2)} {borrowSymbol}
+              {formatTokenAmount(market.totalBorrow, market.borrowDecimals, 4)} {borrowSymbol}
             </span>
           </div>
           <div className="flex justify-between text-sm">
