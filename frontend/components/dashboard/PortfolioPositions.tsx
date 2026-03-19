@@ -99,7 +99,7 @@ function PositionRow({ position }: { position: any }) {
               <p className="text-xs font-medium text-green-700">Supplied</p>
             </div>
             <p className="text-sm font-bold text-green-900">
-              {formatTokenAmount(position.supplied, position.borrowDecimals, 2)}{" "}
+              {formatTokenAmount(position.supplied, position.borrowDecimals, 4)}{" "}
               {position.borrowSymbol}
             </p>
             <p className="text-xs text-green-600">
@@ -119,7 +119,7 @@ function PositionRow({ position }: { position: any }) {
               {formatTokenAmount(
                 position.collateral,
                 position.collateralDecimals,
-                2,
+                4,
               )}{" "}
               {position.collateralSymbol}
             </p>
@@ -137,7 +137,7 @@ function PositionRow({ position }: { position: any }) {
               <p className="text-xs font-medium text-orange-700">Borrowed</p>
             </div>
             <p className="text-sm font-bold text-orange-900">
-              {formatTokenAmount(position.borrowed, position.borrowDecimals, 2)}{" "}
+              {formatTokenAmount(position.borrowed, position.borrowDecimals, 4)}{" "}
               {position.borrowSymbol}
             </p>
             <p className="text-xs text-orange-600">
