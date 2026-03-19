@@ -1,16 +1,16 @@
 /**
  * Subgraph utilities and queries for ISM Protocol
  *
- * The Graph endpoint: https://api.studio.thegraph.com/query/122239/ism-protocol/v0.1
+ * The Graph endpoint: https://api.studio.thegraph.com/query/122239/ism-protocol/version/latest
  */
 
-import { request, gql } from 'graphql-request';
+import { request, gql } from "graphql-request";
 
 // Subgraph endpoint
 const SUBGRAPH_URL = process.env.NEXT_PUBLIC_SUBGRAPH_URL!;
 
 if (!SUBGRAPH_URL) {
-  console.warn('NEXT_PUBLIC_SUBGRAPH_URL is not set in .env.local');
+  console.warn("NEXT_PUBLIC_SUBGRAPH_URL is not set in .env.local");
 }
 
 /**
@@ -123,11 +123,19 @@ const LIQUIDATABLE_POSITIONS_QUERY = gql`
       first: $first
     ) {
       id
-      user { id }
+      user {
+        id
+      }
       market {
         id
-        collateralToken { symbol decimals }
-        borrowToken { symbol decimals }
+        collateralToken {
+          symbol
+          decimals
+        }
+        borrowToken {
+          symbol
+          decimals
+        }
       }
       collateralAmount
       borrowedAmount
@@ -148,11 +156,17 @@ const ACTIVE_AUCTIONS_QUERY = gql`
       first: $first
     ) {
       id
-      borrower { id }
+      borrower {
+        id
+      }
       market {
         id
-        collateralToken { symbol }
-        borrowToken { symbol }
+        collateralToken {
+          symbol
+        }
+        borrowToken {
+          symbol
+        }
       }
       collateralAmount
       debtAmount
@@ -175,12 +189,20 @@ const LIQUIDATION_HISTORY_QUERY = gql`
       skip: $skip
     ) {
       id
-      liquidator { id }
-      borrower { id }
+      liquidator {
+        id
+      }
+      borrower {
+        id
+      }
       market {
         id
-        collateralToken { symbol }
-        borrowToken { symbol }
+        collateralToken {
+          symbol
+        }
+        borrowToken {
+          symbol
+        }
       }
       debtRepaid
       collateralReceived
@@ -201,10 +223,16 @@ const USER_LIQUIDATIONS_QUERY = gql`
       orderDirection: desc
     ) {
       id
-      borrower { id }
+      borrower {
+        id
+      }
       market {
-        collateralToken { symbol }
-        borrowToken { symbol }
+        collateralToken {
+          symbol
+        }
+        borrowToken {
+          symbol
+        }
       }
       debtRepaid
       collateralReceived
@@ -219,8 +247,16 @@ const MARKETS_QUERY = gql`
   query Markets {
     markets(first: 100) {
       id
-      collateralToken { symbol name decimals }
-      borrowToken { symbol name decimals }
+      collateralToken {
+        symbol
+        name
+        decimals
+      }
+      borrowToken {
+        symbol
+        name
+        decimals
+      }
       totalSupplyAssets
       totalBorrowAssets
       totalCollateral
@@ -240,8 +276,12 @@ const USER_POSITIONS_QUERY = gql`
       id
       market {
         id
-        collateralToken { symbol }
-        borrowToken { symbol }
+        collateralToken {
+          symbol
+        }
+        borrowToken {
+          symbol
+        }
       }
       suppliedAssets
       suppliedShares
@@ -261,26 +301,26 @@ const USER_POSITIONS_QUERY = gql`
  */
 
 export async function getLiquidatablePositions(
-  first = 50
+  first = 50,
 ): Promise<{ positions: LiquidatablePosition[] }> {
   return request(SUBGRAPH_URL, LIQUIDATABLE_POSITIONS_QUERY, { first });
 }
 
 export async function getActiveAuctions(
-  first = 20
+  first = 20,
 ): Promise<{ auctions: ActiveAuction[] }> {
   return request(SUBGRAPH_URL, ACTIVE_AUCTIONS_QUERY, { first });
 }
 
 export async function getLiquidationHistory(
   first = 50,
-  skip = 0
+  skip = 0,
 ): Promise<{ liquidations: Liquidation[] }> {
   return request(SUBGRAPH_URL, LIQUIDATION_HISTORY_QUERY, { first, skip });
 }
 
 export async function getUserLiquidations(
-  userAddress: string
+  userAddress: string,
 ): Promise<{ liquidations: Liquidation[] }> {
   return request(SUBGRAPH_URL, USER_LIQUIDATIONS_QUERY, { userAddress });
 }
@@ -290,7 +330,7 @@ export async function getMarkets(): Promise<{ markets: Market[] }> {
 }
 
 export async function getUserPositions(
-  userAddress: string
+  userAddress: string,
 ): Promise<{ positions: Position[] }> {
   return request(SUBGRAPH_URL, USER_POSITIONS_QUERY, { userAddress });
 }

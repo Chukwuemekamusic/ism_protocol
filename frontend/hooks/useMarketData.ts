@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContracts } from 'wagmi';
-import { LENDING_POOL_ABI, ERC20_ABI } from '@/lib/contracts/abis';
+import { LENDING_POOL_ABI, ERC20_ABI, INTEREST_RATE_MODEL_ABI } from '@/lib/contracts/abis';
 import { calculateAPY, calculateUtilization } from '@/lib/utils/calculations';
 import { formatUnits } from 'viem';
 
@@ -86,12 +86,7 @@ export function useMarketData(marketAddress: `0x${string}`) {
       {
         address: marketAddress,
         abi: LENDING_POOL_ABI,
-        functionName: 'getBorrowRate',
-      },
-      {
-        address: marketAddress,
-        abi: LENDING_POOL_ABI,
-        functionName: 'getSupplyRate',
+        functionName: 'interestRateModel',
       },
     ],
     query: {
@@ -99,12 +94,43 @@ export function useMarketData(marketAddress: `0x${string}`) {
     },
   });
 
+  // Extract pool data for rate calculations
+  const interestRateModelAddress = (data?.[10]?.result as `0x${string}`) || undefined;
+  const totalSupply = (data?.[0]?.result as bigint) || 0n;
+  const totalBorrow = (data?.[1]?.result as bigint) || 0n;
+  const reserveFactor = (data?.[9]?.result as bigint) || 0n;
+
+  // Fetch interest rates from InterestRateModel contract
+  const { data: rateData } = useReadContracts({
+    contracts: interestRateModelAddress ? [
+      {
+        address: interestRateModelAddress,
+        abi: INTEREST_RATE_MODEL_ABI,
+        functionName: 'getBorrowRate',
+        args: [totalSupply, totalBorrow],
+      },
+      {
+        address: interestRateModelAddress,
+        abi: INTEREST_RATE_MODEL_ABI,
+        functionName: 'getSupplyRate',
+        args: [totalSupply, totalBorrow, reserveFactor],
+      },
+    ] : [],
+    query: {
+      enabled: !!interestRateModelAddress && totalSupply > 0n,
+      refetchInterval: 12000,
+    },
+  });
+
+  const borrowRate = (rateData?.[0]?.result as bigint) || 0n;
+  const supplyRate = (rateData?.[1]?.result as bigint) || 0n;
+
   // Parse the results
   const marketData: MarketData | null = data
     ? {
         address: marketAddress,
-        totalSupply: (data[0]?.result as bigint) || 0n,
-        totalBorrow: (data[1]?.result as bigint) || 0n,
+        totalSupply,
+        totalBorrow,
         collateralToken: (data[2]?.result as `0x${string}`) || '0x',
         borrowToken: (data[3]?.result as `0x${string}`) || '0x',
         collateralDecimals: (data[4]?.result as number) || 18,
@@ -112,15 +138,12 @@ export function useMarketData(marketAddress: `0x${string}`) {
         ltv: Number(data[6]?.result || 0) / 1e18 * 100, // Convert from WAD to percentage
         liquidationThreshold: Number(data[7]?.result || 0) / 1e18 * 100,
         liquidationPenalty: Number(data[8]?.result || 0) / 1e18 * 100,
-        reserveFactor: Number(data[9]?.result || 0) / 1e18 * 100,
-        borrowRate: (data[10]?.result as bigint) || 0n,
-        supplyRate: (data[11]?.result as bigint) || 0n,
-        borrowAPY: calculateAPY((data[10]?.result as bigint) || 0n),
-        supplyAPY: calculateAPY((data[11]?.result as bigint) || 0n),
-        utilization: calculateUtilization(
-          (data[1]?.result as bigint) || 0n,
-          (data[0]?.result as bigint) || 0n
-        ),
+        reserveFactor: Number(reserveFactor) / 1e18 * 100,
+        borrowRate,
+        supplyRate,
+        borrowAPY: calculateAPY(borrowRate),
+        supplyAPY: calculateAPY(supplyRate),
+        utilization: calculateUtilization(totalBorrow, totalSupply),
         collateralSymbol: '', // Will be fetched separately if needed
         borrowSymbol: '',
       }

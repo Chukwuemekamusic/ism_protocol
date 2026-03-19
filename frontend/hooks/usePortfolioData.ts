@@ -1,7 +1,7 @@
 'use client';
 
 import { useReadContracts, useChainId } from 'wagmi';
-import { LENDING_POOL_ABI, ORACLE_ROUTER_ABI, ERC20_ABI } from '@/lib/contracts/abis';
+import { LENDING_POOL_ABI, ORACLE_ROUTER_ABI, ERC20_ABI, INTEREST_RATE_MODEL_ABI } from '@/lib/contracts/abis';
 import { getContractAddress } from '@/lib/contracts/addresses';
 import { UserPosition } from './useUserPosition';
 import { useMemo } from 'react';
@@ -50,15 +50,15 @@ export function usePortfolioData(positions: UserPosition[]) {
     if (!positions || positions.length === 0) return [];
 
     return positions.flatMap((position) => [
-      // Market data
+      // Market data (9 calls per position)
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'collateralToken' },
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'borrowToken' },
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'collateralDecimals' },
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'borrowDecimals' },
-      { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'getSupplyRate' },
-      { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'getBorrowRate' },
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'totalSupplyAssets' },
       { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'totalBorrowAssets' },
+      { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'reserveFactor' },
+      { address: position.marketAddress, abi: LENDING_POOL_ABI, functionName: 'interestRateModel' },
     ]);
   }, [positions]);
 
@@ -70,23 +70,40 @@ export function usePortfolioData(positions: UserPosition[]) {
     },
   });
 
-  // Extract tokens for symbol and price fetching
+  // Extract tokens and interest rate model addresses
   const tokens = useMemo(() => {
-    if (!marketData || marketData.length === 0) return { collateralTokens: [], borrowTokens: [] };
+    if (!marketData || marketData.length === 0) return {
+      collateralTokens: [],
+      borrowTokens: [],
+      rateModelData: [] as Array<{address: `0x${string}`, totalSupply: bigint, totalBorrow: bigint, reserveFactor: bigint}>
+    };
 
     const collateralTokens: `0x${string}`[] = [];
     const borrowTokens: `0x${string}`[] = [];
+    const rateModelData: Array<{address: `0x${string}`, totalSupply: bigint, totalBorrow: bigint, reserveFactor: bigint}> = [];
 
     for (let i = 0; i < positions.length; i++) {
-      const baseIndex = i * 8;
+      const baseIndex = i * 8; // Now 8 items per position
       const collateralToken = marketData[baseIndex]?.result as `0x${string}` | undefined;
       const borrowToken = marketData[baseIndex + 1]?.result as `0x${string}` | undefined;
+      const totalSupply = marketData[baseIndex + 4]?.result as bigint | undefined;
+      const totalBorrow = marketData[baseIndex + 5]?.result as bigint | undefined;
+      const reserveFactor = marketData[baseIndex + 6]?.result as bigint | undefined;
+      const interestRateModel = marketData[baseIndex + 7]?.result as `0x${string}` | undefined;
 
       if (collateralToken) collateralTokens.push(collateralToken);
       if (borrowToken) borrowTokens.push(borrowToken);
+      if (interestRateModel && totalSupply && totalBorrow && reserveFactor) {
+        rateModelData.push({
+          address: interestRateModel,
+          totalSupply,
+          totalBorrow,
+          reserveFactor
+        });
+      }
     }
 
-    return { collateralTokens, borrowTokens };
+    return { collateralTokens, borrowTokens, rateModelData };
   }, [marketData, positions]);
 
   // Fetch token symbols and prices
@@ -104,6 +121,32 @@ export function usePortfolioData(positions: UserPosition[]) {
     contracts: symbolAndPriceContracts,
     query: {
       enabled: symbolAndPriceContracts.length > 0,
+      refetchInterval: 12000,
+    },
+  });
+
+  // Fetch interest rates from InterestRateModel contracts
+  const rateContracts = useMemo(() => {
+    return tokens.rateModelData.flatMap((data) => [
+      {
+        address: data.address,
+        abi: INTEREST_RATE_MODEL_ABI,
+        functionName: 'getBorrowRate',
+        args: [data.totalSupply, data.totalBorrow],
+      },
+      {
+        address: data.address,
+        abi: INTEREST_RATE_MODEL_ABI,
+        functionName: 'getSupplyRate',
+        args: [data.totalSupply, data.totalBorrow, data.reserveFactor],
+      },
+    ]);
+  }, [tokens.rateModelData]);
+
+  const { data: rateData, isLoading: rateDataLoading } = useReadContracts({
+    contracts: rateContracts,
+    query: {
+      enabled: rateContracts.length > 0,
       refetchInterval: 12000,
     },
   });
@@ -142,16 +185,19 @@ export function usePortfolioData(positions: UserPosition[]) {
     if (!marketData || marketData.length === 0 || tokenDataMap.size === 0) return [];
 
     return positions.map((position, index) => {
-      const baseIndex = index * 8;
+      const baseIndex = index * 8; // Now 8 items per position
 
-      const collateralToken = (marketData[baseIndex]?.result as `0x${string}`) || '0x0';
-      const borrowToken = (marketData[baseIndex + 1]?.result as `0x${string}`) || '0x0';
-      const collateralDecimals = (marketData[baseIndex + 2]?.result as number) || 18;
-      const borrowDecimals = (marketData[baseIndex + 3]?.result as number) || 18;
-      const supplyRate = (marketData[baseIndex + 4]?.result as bigint) || 0n;
-      const borrowRate = (marketData[baseIndex + 5]?.result as bigint) || 0n;
-      const totalSupply = (marketData[baseIndex + 6]?.result as bigint) || 0n;
-      const totalBorrow = (marketData[baseIndex + 7]?.result as bigint) || 0n;
+      const collateralToken = (marketData[baseIndex]?.result as unknown as `0x${string}`) || '0x0';
+      const borrowToken = (marketData[baseIndex + 1]?.result as unknown as `0x${string}`) || '0x0';
+      const collateralDecimals = (marketData[baseIndex + 2]?.result as unknown as number) || 18;
+      const borrowDecimals = (marketData[baseIndex + 3]?.result as unknown as number) || 18;
+      const totalSupply = (marketData[baseIndex + 4]?.result as unknown as bigint) || 0n;
+      const totalBorrow = (marketData[baseIndex + 5]?.result as unknown as bigint) || 0n;
+
+      // Get interest rates from InterestRateModel
+      const rateIndex = index * 2; // 2 calls per position (borrow rate, supply rate)
+      const borrowRate = (rateData?.[rateIndex]?.result as unknown as bigint) || 0n;
+      const supplyRate = (rateData?.[rateIndex + 1]?.result as unknown as bigint) || 0n;
 
       const collateralData = tokenDataMap.get(collateralToken.toLowerCase());
       const borrowData = tokenDataMap.get(borrowToken.toLowerCase());
@@ -206,7 +252,7 @@ export function usePortfolioData(positions: UserPosition[]) {
         netValueUSD,
       };
     });
-  }, [positions, marketData, tokenDataMap]);
+  }, [positions, marketData, tokenDataMap, rateData]);
 
   // Calculate portfolio summary
   const summary: PortfolioSummary = useMemo(() => {
@@ -220,7 +266,7 @@ export function usePortfolioData(positions: UserPosition[]) {
         lowestHealthFactor: 0,
         totalSupplyAPY: 0,
         totalBorrowAPY: 0,
-        isLoading: marketDataLoading || priceDataLoading,
+        isLoading: marketDataLoading || priceDataLoading || rateDataLoading,
       };
     }
 
@@ -262,11 +308,11 @@ export function usePortfolioData(positions: UserPosition[]) {
       totalBorrowAPY,
       isLoading: false,
     };
-  }, [enrichedPositions, marketDataLoading, priceDataLoading]);
+  }, [enrichedPositions, marketDataLoading, priceDataLoading, rateDataLoading]);
 
   return {
     enrichedPositions,
     summary,
-    isLoading: marketDataLoading || priceDataLoading,
+    isLoading: marketDataLoading || priceDataLoading || rateDataLoading,
   };
 }

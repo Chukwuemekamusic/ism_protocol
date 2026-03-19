@@ -40,6 +40,12 @@ export default function Header() {
             >
               Dashboard
             </Link>
+            <Link
+              href="/liquidations"
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Liquidations
+            </Link>
             <a
               href="https://docs.ismprotocol.xyz"
               target="_blank"
@@ -88,6 +94,13 @@ export default function Header() {
               className="block text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors"
             >
               Dashboard
+            </Link>
+            <Link
+              href="/liquidations"
+              onClick={closeMobileMenu}
+              className="block text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-lg transition-colors"
+            >
+              Liquidations
             </Link>
             <a
               href="https://docs.ismprotocol.xyz"
