@@ -12,8 +12,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
+        staleTime: 240000, // 4min - data considered fresh (no refetch)
+        gcTime: 5 * 60 * 1000, // 5min - cache retention time
         refetchOnWindowFocus: false,
-        retry: 1,
+        retry: (failureCount, error: any) => {
+          // Don't retry on 429 rate limits to prevent amplification
+          if (error?.message?.includes('429') || error?.message?.includes('Too many requests')) {
+            return false;
+          }
+          // Only 1 retry for other errors
+          return failureCount < 1;
+        },
+        retryDelay: (attemptIndex) => {
+          // Exponential backoff: 1s, 2s, 4s, max 30s
+          return Math.min(1000 * 2 ** attemptIndex, 30000);
+        },
       },
     },
   }));

@@ -8,6 +8,8 @@ import {
   PortfolioPositions,
   PortfolioRiskCard,
 } from "@/components/dashboard";
+import { HealthFactorChart } from "@/components/dashboard/HealthFactorChart";
+import { InterestSummaryCards } from "@/components/dashboard/InterestSummaryCards";
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
@@ -126,6 +128,11 @@ export default function DashboardPage() {
       {/* Portfolio Overview Stats */}
       <PortfolioOverview positions={positions} />
 
+      {/* Interest & Earnings Summary */}
+      <div className="mt-8">
+        <InterestSummaryCards />
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         {/* Left Column - Positions List */}
@@ -137,6 +144,11 @@ export default function DashboardPage() {
         <div className="lg:col-span-1 space-y-6">
           <PortfolioRiskCard positions={positions} />
         </div>
+      </div>
+
+      {/* Health Factor History Chart */}
+      <div className="mt-8">
+        <HealthFactorChart />
       </div>
     </div>
   );

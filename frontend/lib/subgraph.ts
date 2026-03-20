@@ -14,6 +14,133 @@ if (!SUBGRAPH_URL) {
 }
 
 /**
+ * Retry configuration
+ */
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 10000; // 10 seconds
+
+/**
+ * Request throttling configuration
+ * Limits concurrent requests to avoid overwhelming The Graph
+ */
+const MAX_CONCURRENT_REQUESTS = 2;
+const MIN_REQUEST_INTERVAL = 500; // Minimum 500ms between requests
+
+/**
+ * Request queue management
+ */
+let activeRequests = 0;
+let lastRequestTime = 0;
+const requestQueue: Array<() => void> = [];
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function getRetryDelay(attempt: number): number {
+  const exponentialDelay = Math.min(
+    INITIAL_RETRY_DELAY * Math.pow(2, attempt),
+    MAX_RETRY_DELAY,
+  );
+  // Add jitter (random 0-25% of delay)
+  const jitter = exponentialDelay * 0.25 * Math.random();
+  return exponentialDelay + jitter;
+}
+
+/**
+ * Acquire a request slot (throttling mechanism)
+ */
+async function acquireRequestSlot(): Promise<void> {
+  // Wait if we have too many concurrent requests
+  while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+    await new Promise((resolve) => {
+      requestQueue.push(resolve as () => void);
+    });
+  }
+
+  // Ensure minimum interval between requests
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+    await sleep(MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+  }
+
+  activeRequests++;
+  lastRequestTime = Date.now();
+}
+
+/**
+ * Release a request slot
+ */
+function releaseRequestSlot(): void {
+  activeRequests--;
+  const next = requestQueue.shift();
+  if (next) {
+    next();
+  }
+}
+
+/**
+ * Wrapper for GraphQL requests with retry logic and rate limit handling
+ */
+async function requestWithRetry<T = any>(
+  query: string,
+  variables?: any,
+  retryCount = 0,
+): Promise<T> {
+  // Acquire a request slot (throttling)
+  await acquireRequestSlot();
+
+  try {
+    const result = await request<T>(SUBGRAPH_URL, query, variables);
+    return result;
+  } catch (error: any) {
+    const isRateLimitError =
+      error?.response?.status === 429 ||
+      error?.message?.includes("429") ||
+      error?.message?.includes("Too many requests");
+
+    const isServerError =
+      error?.response?.status >= 500 && error?.response?.status < 600;
+
+    // Only retry server errors (5xx), NOT rate limit errors (429)
+    // This prevents amplifying rate limits (1 error -> 4 total requests)
+    const shouldRetry = isServerError && retryCount < MAX_RETRIES;
+
+    if (shouldRetry) {
+      const delay = getRetryDelay(retryCount);
+      // Only log non-429 errors to avoid console noise for rate limits (gracefully handled in UI)
+      if (!isRateLimitError) {
+        console.warn(
+          `GraphQL request failed (attempt ${retryCount + 1}/${MAX_RETRIES}). Retrying in ${Math.round(delay)}ms...`,
+          {
+            error: error?.message,
+            status: error?.response?.status,
+          },
+        );
+      }
+      await sleep(delay);
+      // Note: We don't release the slot here as the retry will acquire a new one
+      releaseRequestSlot();
+      return requestWithRetry<T>(query, variables, retryCount + 1);
+    }
+
+    // If we've exhausted retries or it's not a retryable error, throw
+    throw error;
+  } finally {
+    // Always release the request slot when done
+    releaseRequestSlot();
+  }
+}
+
+/**
  * Types
  */
 
@@ -108,6 +235,24 @@ export interface Position {
   isLiquidatable: boolean;
   timeUnderwater: string;
   lastUpdate: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: string;
+  market: {
+    id: string;
+    collateralToken: { symbol: string; decimals: number };
+    borrowToken: { symbol: string; decimals: number };
+  };
+  user: {
+    id: string;
+  };
+  amount: string;
+  amountUSD: string;
+  timestamp: string;
+  transactionHash: string;
+  blockNumber: string;
 }
 
 /**
@@ -296,6 +441,39 @@ const USER_POSITIONS_QUERY = gql`
   }
 `;
 
+const USER_TRANSACTIONS_QUERY = gql`
+  query UserTransactions($userAddress: String!, $first: Int = 100) {
+    transactions(
+      where: { user: $userAddress }
+      orderBy: timestamp
+      orderDirection: desc
+      first: $first
+    ) {
+      id
+      type
+      market {
+        id
+        collateralToken {
+          symbol
+          decimals
+        }
+        borrowToken {
+          symbol
+          decimals
+        }
+      }
+      user {
+        id
+      }
+      amount
+      amountUSD
+      timestamp
+      transactionHash
+      blockNumber
+    }
+  }
+`;
+
 /**
  * Query Functions
  */
@@ -303,36 +481,46 @@ const USER_POSITIONS_QUERY = gql`
 export async function getLiquidatablePositions(
   first = 50,
 ): Promise<{ positions: LiquidatablePosition[] }> {
-  return request(SUBGRAPH_URL, LIQUIDATABLE_POSITIONS_QUERY, { first });
+  return requestWithRetry(LIQUIDATABLE_POSITIONS_QUERY, { first });
 }
 
 export async function getActiveAuctions(
   first = 20,
 ): Promise<{ auctions: ActiveAuction[] }> {
-  return request(SUBGRAPH_URL, ACTIVE_AUCTIONS_QUERY, { first });
+  return requestWithRetry(ACTIVE_AUCTIONS_QUERY, { first });
 }
 
 export async function getLiquidationHistory(
   first = 50,
   skip = 0,
 ): Promise<{ liquidations: Liquidation[] }> {
-  return request(SUBGRAPH_URL, LIQUIDATION_HISTORY_QUERY, { first, skip });
+  return requestWithRetry(LIQUIDATION_HISTORY_QUERY, { first, skip });
 }
 
 export async function getUserLiquidations(
   userAddress: string,
 ): Promise<{ liquidations: Liquidation[] }> {
-  return request(SUBGRAPH_URL, USER_LIQUIDATIONS_QUERY, { userAddress });
+  return requestWithRetry(USER_LIQUIDATIONS_QUERY, { userAddress });
 }
 
 export async function getMarkets(): Promise<{ markets: Market[] }> {
-  return request(SUBGRAPH_URL, MARKETS_QUERY);
+  return requestWithRetry(MARKETS_QUERY);
 }
 
 export async function getUserPositions(
   userAddress: string,
 ): Promise<{ positions: Position[] }> {
-  return request(SUBGRAPH_URL, USER_POSITIONS_QUERY, { userAddress });
+  return requestWithRetry(USER_POSITIONS_QUERY, { userAddress });
+}
+
+export async function getUserTransactions(
+  userAddress: string,
+  first = 100,
+): Promise<{ transactions: Transaction[] }> {
+  return requestWithRetry(USER_TRANSACTIONS_QUERY, {
+    userAddress,
+    first,
+  });
 }
 
 /**

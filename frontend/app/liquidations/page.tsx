@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertCircle, TrendingDown, History, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAccount } from 'wagmi';
@@ -10,6 +10,7 @@ import {
   getLiquidationHistory,
   getUserLiquidations,
 } from '@/lib/subgraph';
+import { is429Error } from '@/lib/utils/errorHandling';
 
 import LiquidatablePositionsList from '@/components/liquidations/LiquidatablePositionsList';
 import ActiveAuctionsList from '@/components/liquidations/ActiveAuctionsList';
@@ -17,53 +18,112 @@ import LiquidationHistoryTable from '@/components/liquidations/LiquidationHistor
 
 type Tab = 'opportunities' | 'auctions' | 'history' | 'my-liquidations';
 
+const RATE_LIMIT_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes backoff after rate limit
+const NORMAL_REFETCH_INTERVAL = 300000; // 5 minutes normal polling
+
 export default function LiquidationsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('opportunities');
   const { address, isConnected } = useAccount();
 
-  // Fetch liquidatable positions
+  // Track rate limit backoff state
+  const [rateLimitBackoffUntil, setRateLimitBackoffUntil] = useState<number | null>(null);
+
+  // Check if we're currently in backoff mode
+  const isInBackoff = rateLimitBackoffUntil !== null && Date.now() < rateLimitBackoffUntil;
+
+  // Calculate refetch interval (disabled during backoff)
+  const getRefetchInterval = (tabActive: boolean) => {
+    if (!tabActive) return false;
+    if (isInBackoff) return false; // Pause polling during backoff
+    return NORMAL_REFETCH_INTERVAL;
+  };
+
+  // Fetch liquidatable positions (only when Opportunities tab is active)
   const {
     data: liquidatableData,
     isLoading: loadingLiquidatable,
     error: errorLiquidatable,
+    refetch: refetchLiquidatable,
   } = useQuery({
     queryKey: ['liquidatable-positions'],
     queryFn: () => getLiquidatablePositions(50),
-    refetchInterval: 12000, // Refetch every 12 seconds
+    enabled: activeTab === 'opportunities', // Only fetch when tab is active (lazy loading)
+    refetchInterval: getRefetchInterval(activeTab === 'opportunities'), // Adaptive: pauses during backoff
+    staleTime: 240000, // Use cache for 4 min before considering data stale
   });
 
-  // Fetch active auctions
+  // Fetch active auctions (only when Auctions tab is active)
   const {
     data: auctionsData,
     isLoading: loadingAuctions,
     error: errorAuctions,
+    refetch: refetchAuctions,
   } = useQuery({
     queryKey: ['active-auctions'],
     queryFn: () => getActiveAuctions(20),
-    refetchInterval: 12000,
+    enabled: activeTab === 'auctions', // Only fetch when tab is active (lazy loading)
+    refetchInterval: getRefetchInterval(activeTab === 'auctions'), // Adaptive: pauses during backoff
+    staleTime: 240000, // Use cache for 4 min before considering data stale
   });
 
-  // Fetch liquidation history
+  // Fetch liquidation history (only when History tab is active)
   const {
     data: historyData,
     isLoading: loadingHistory,
     error: errorHistory,
+    refetch: refetchHistory,
   } = useQuery({
     queryKey: ['liquidation-history'],
     queryFn: () => getLiquidationHistory(50, 0),
-    refetchInterval: 30000, // History updates less frequently
+    enabled: activeTab === 'history', // Only fetch when tab is active (lazy loading)
+    refetchInterval: getRefetchInterval(activeTab === 'history'), // Adaptive: pauses during backoff
+    staleTime: 240000, // Use cache for 4 min before considering data stale
   });
 
-  // Fetch user's liquidation activity (only if connected)
+  // Fetch user's liquidation activity (only if connected AND My Liquidations tab is active)
   const {
     data: userLiquidationsData,
     isLoading: loadingUserLiquidations,
+    error: errorUserLiquidations,
+    refetch: refetchUserLiquidations,
   } = useQuery({
     queryKey: ['user-liquidations', address],
     queryFn: () => getUserLiquidations(address!),
-    enabled: isConnected && !!address,
-    refetchInterval: 30000,
+    enabled: isConnected && !!address && activeTab === 'my-liquidations', // Only fetch when tab is active
+    refetchInterval: getRefetchInterval(isConnected && activeTab === 'my-liquidations'), // Adaptive: pauses during backoff
+    staleTime: 240000, // Use cache for 4 min before considering data stale
   });
+
+  // Detect 429 errors and trigger adaptive backoff
+  useEffect(() => {
+    const errors = [errorLiquidatable, errorAuctions, errorHistory, errorUserLiquidations];
+    const has429Error = errors.some(error => error && is429Error(error));
+
+    if (has429Error && !isInBackoff) {
+      // Trigger 5-minute backoff
+      const backoffUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+      setRateLimitBackoffUntil(backoffUntil);
+      console.log(`Rate limit detected. Pausing polling for 5 minutes until ${new Date(backoffUntil).toLocaleTimeString()}`);
+    }
+  }, [errorLiquidatable, errorAuctions, errorHistory, errorUserLiquidations, isInBackoff]);
+
+  // Clear backoff when time expires
+  useEffect(() => {
+    if (!rateLimitBackoffUntil) return;
+
+    const timeUntilResume = rateLimitBackoffUntil - Date.now();
+    if (timeUntilResume <= 0) {
+      setRateLimitBackoffUntil(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      console.log('Rate limit backoff expired. Resuming normal polling.');
+      setRateLimitBackoffUntil(null);
+    }, timeUntilResume);
+
+    return () => clearTimeout(timer);
+  }, [rateLimitBackoffUntil]);
 
   const positions = liquidatableData?.positions || [];
   const auctions = auctionsData?.auctions || [];
@@ -197,6 +257,7 @@ export default function LiquidationsPage() {
             positions={positions}
             isLoading={loadingLiquidatable}
             error={errorLiquidatable}
+            refetch={refetchLiquidatable}
           />
         )}
 
@@ -205,6 +266,7 @@ export default function LiquidationsPage() {
             auctions={auctions}
             isLoading={loadingAuctions}
             error={errorAuctions}
+            refetch={refetchAuctions}
           />
         )}
 
@@ -213,6 +275,7 @@ export default function LiquidationsPage() {
             liquidations={liquidations}
             isLoading={loadingHistory}
             error={errorHistory}
+            refetch={refetchHistory}
           />
         )}
 
@@ -229,6 +292,7 @@ export default function LiquidationsPage() {
                 isLoading={loadingUserLiquidations}
                 error={null}
                 isUserView
+                refetch={refetchUserLiquidations}
               />
             )}
           </div>
