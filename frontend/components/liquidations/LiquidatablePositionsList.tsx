@@ -61,17 +61,30 @@ export default function LiquidatablePositionsList({ positions, isLoading, error,
   // Handle 429 rate limit error WITH no cached data
   if (error && is429Error(error) && positions.length === 0) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <div className="flex items-center gap-2 text-yellow-700 mb-3">
-          <Clock className="h-5 w-5" />
-          <span className="font-semibold">Rate Limited</span>
+      <div className="space-y-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <div className="flex items-center gap-2 text-yellow-700 mb-3">
+            <Clock className="h-5 w-5" />
+            <span className="font-semibold">Rate Limited</span>
+          </div>
+          <p className="text-yellow-800 text-sm mb-3">
+            The data provider is temporarily rate limiting requests. Polling is paused for 5 minutes to respect rate limits.
+          </p>
+          <p className="text-yellow-700 text-xs mb-4">
+            💡 Tip: Click the Refresh button below to try again, or wait for automatic polling to resume.
+          </p>
+          {refetch && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              title="Manually refresh data"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
+            </button>
+          )}
         </div>
-        <p className="text-yellow-800 text-sm mb-3">
-          The data provider is temporarily rate limiting requests. Polling is paused for 5 minutes to respect rate limits.
-        </p>
-        <p className="text-yellow-700 text-xs">
-          💡 Tip: Use the manual Refresh button when data is available, or wait for automatic polling to resume.
-        </p>
       </div>
     );
   }
