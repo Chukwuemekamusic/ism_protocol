@@ -61,7 +61,7 @@ export function useProtocolStats(): ProtocolStats {
       enabled: contracts.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean };
 
   // Extract borrow tokens to fetch their prices
   const borrowTokens = useMemo(() => {
@@ -92,7 +92,7 @@ export function useProtocolStats(): ProtocolStats {
       enabled: priceContracts.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean };
 
   // Aggregate the results
   const stats = useMemo(() => {

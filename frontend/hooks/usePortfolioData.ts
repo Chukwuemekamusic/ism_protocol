@@ -68,7 +68,7 @@ export function usePortfolioData(positions: UserPosition[]) {
       enabled: contracts.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean };
 
   // Extract tokens and interest rate model addresses
   const tokens = useMemo(() => {
@@ -123,7 +123,7 @@ export function usePortfolioData(positions: UserPosition[]) {
       enabled: symbolAndPriceContracts.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean };
 
   // Fetch interest rates from InterestRateModel contracts
   const rateContracts = useMemo(() => {
@@ -149,7 +149,7 @@ export function usePortfolioData(positions: UserPosition[]) {
       enabled: rateContracts.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean };
 
   // Build token data map
   const tokenDataMap = useMemo(() => {

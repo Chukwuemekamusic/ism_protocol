@@ -45,7 +45,7 @@ export function useUserPositions() {
       enabled: !!address && markets.length > 0,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean; error: Error | null; refetch: () => void };
 
   // Transform data into positions array
   const positions: UserPosition[] =
@@ -130,7 +130,7 @@ export function useUserMarketPosition(marketAddress: `0x${string}`) {
       enabled: !!address,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean; error: Error | null; refetch: () => void };
 
   // Get pool token address and read user's shares
   const poolTokenAddress = data?.[0]?.result as `0x${string}` | undefined;
@@ -150,7 +150,7 @@ export function useUserMarketPosition(marketAddress: `0x${string}`) {
       enabled: !!address && !!poolTokenAddress,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any };
 
   const userShares = (poolTokenData?.[0]?.result as bigint) || 0n;
   const totalAssets = (data?.[1]?.result as bigint) || 0n;

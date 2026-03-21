@@ -92,7 +92,7 @@ export function useMarketData(marketAddress: `0x${string}`) {
     query: {
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any; isLoading: boolean; error: Error | null; refetch: () => void };
 
   // Extract pool data for rate calculations
   const interestRateModelAddress = (data?.[10]?.result as `0x${string}`) || undefined;
@@ -120,7 +120,7 @@ export function useMarketData(marketAddress: `0x${string}`) {
       enabled: !!interestRateModelAddress && totalSupply > 0n,
       refetchInterval: 12000,
     },
-  });
+  }) as { data: any };
 
   const borrowRate = (rateData?.[0]?.result as bigint) || 0n;
   const supplyRate = (rateData?.[1]?.result as bigint) || 0n;
@@ -174,7 +174,7 @@ export function useMarketTokenSymbols(collateralToken: `0x${string}`, borrowToke
         functionName: 'symbol',
       },
     ],
-  });
+  }) as { data: any };
 
   return {
     collateralSymbol: (data?.[0]?.result as string) || 'Unknown',

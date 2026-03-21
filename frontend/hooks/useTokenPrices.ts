@@ -30,7 +30,7 @@ export function useTokenPrices(
     query: {
       refetchInterval: 30000, // Refetch prices every 30 seconds
     },
-  });
+  }) as { data: any; isLoading: boolean; error: Error | null; refetch: () => void };
 
   const collateralPrice = (data?.[0]?.result as bigint) || 0n;
   const borrowPrice = (data?.[1]?.result as bigint) || 0n;
