@@ -1,6 +1,24 @@
-# Isolated Lending Markets Protocol
+# ISM Protocol - Isolated Lending Markets
 
-A DeFi lending protocol with isolated markets, Dutch auction liquidations, an automated liquidation bot, and a modern web interface. Built on Base.
+A DeFi lending protocol with isolated markets, Dutch auction liquidations, and MEV-resistant liquidations. Built on Base.
+
+---
+
+## 🚀 Try It Now (Testnet)
+
+**Live on Base Sepolia**: [Insert Your Deployment URL]
+
+### For Users
+- 📖 **New to ISM?** → [User Guide](docs/USER_GUIDE.md) - Learn how to lend and borrow
+- 🔧 **Getting Started** → [Testnet Info](docs/TESTNET.md) - Faucets, addresses, and setup
+- ❓ **Have Questions?** → [FAQ](docs/FAQ.md) - Common questions answered
+
+### For Developers
+- 💻 **Want to Integrate?** → [Developer Guide](docs/DEVELOPER_GUIDE.md) - Code examples and APIs
+- 🔗 **Contract Addresses** → [Testnet Deployments](docs/TESTNET.md#deployed-contracts)
+- 📊 **Subgraph API** → [GraphQL Endpoint](docs/DEVELOPER_GUIDE.md#subgraph-integration)
+
+---
 
 ## Structure
 
@@ -71,10 +89,20 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Deployment Guide](contracts/DEPLOYMENT.md)
-- [Bot README](liquidation_bot/README.md)
-- [Frontend README](frontend/README.md)
+### User Documentation
+- **[User Guide](docs/USER_GUIDE.md)** - How to use ISM Protocol (supply, borrow, manage positions)
+- **[Testnet Info](docs/TESTNET.md)** - Deployed addresses, faucets, and network setup
+- **[FAQ](docs/FAQ.md)** - Frequently asked questions
+
+### Developer Documentation
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Integration guide with code examples
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and design
+- **[Deployment Roadmap](DEPLOYMENT_ROADMAP.md)** - Testnet to mainnet plan
+
+### Component READMEs
+- **[Contracts](contracts/README.md)** - Smart contracts development guide
+- **[Frontend](frontend/README.md)** - Web app setup and development
+- **[Liquidation Bot](liquidation_bot/README.md)** - Bot configuration and operation
 
 ## Tech Stack
 

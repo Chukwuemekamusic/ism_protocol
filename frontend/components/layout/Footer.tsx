@@ -42,19 +42,29 @@ export default function Footer() {
             <h3 className="font-semibold mb-3">Resources</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <a href="#" className="hover:text-gray-900 transition-colors">
+                <a
+                  href="https://github.com/Chukwuemekamusic/ism_protocol/blob/main/docs/USER_GUIDE.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-gray-900 transition-colors"
+                >
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-gray-900 transition-colors">
+                <a
+                  href="https://github.com/Chukwuemekamusic/ism_protocol"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-gray-900 transition-colors"
+                >
                   GitHub
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-gray-900 transition-colors">
-                  Audits
-                </a>
+                <span className="text-gray-400 cursor-not-allowed">
+                  Audits (Coming Soon)
+                </span>
               </li>
             </ul>
           </div>
